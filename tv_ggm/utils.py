@@ -1,7 +1,5 @@
 import numpy as np
 
-from cvx.sdp import *
-
 def mat_to_vec(S):
     return S.flatten()
 
@@ -45,6 +43,7 @@ def correct(s_hat, Theta_hat, beta, D):
     s -= beta * grad_f
     return project(s)
 
+# TODO: Add min/max eigenvalue args
 def project(s):
     S = vech_to_mat(s)
     eigvals, eigvecs = np.linalg.eigh(S)
@@ -56,3 +55,20 @@ def spectral_range(matrix):
     eigenvalues = np.linalg.eigvals(matrix)
     spectral_range = np.max(eigenvalues) - np.min(eigenvalues)
     return spectral_range
+
+def generate_random_matrix(N, spectral_range):
+    # Generate a random symmetric matrix
+    A = np.random.rand(N, N)
+    A = (A + A.T) / 2
+    
+    # Compute eigenvalues and eigenvectors of A
+    eigenvalues, eigenvectors = np.linalg.eigh(A)
+    
+    # Scale eigenvalues to the desired spectral range
+    eigenvalues = (eigenvalues - np.min(eigenvalues)) / (np.max(eigenvalues) - np.min(eigenvalues))
+    eigenvalues = eigenvalues * spectral_range
+    
+    # Construct the random symmetric matrix with the desired spectral range
+    matrix = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+    
+    return matrix

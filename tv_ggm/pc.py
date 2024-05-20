@@ -74,9 +74,12 @@ class OnlineGraphLearning:
        
        return vech_to_mat(self.s_hat), self.nses
 
-def generate_data(N, T, seed):
+def generate_data(N, T, seed=24):
    np.random.seed(seed)
-   Theta_true = generate_random_matrix(N, 10)
+   X = np.random.rand(N, N)
+   Theta_true = np.cov(X)
+   eigvals, eigvecs = np.linalg.eigh(Theta_true)
+   Theta_true = eigvecs @ np.diag([10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) @ eigvecs.T
    S_true = np.linalg.inv(Theta_true)
    data = np.random.multivariate_normal(mean=np.zeros(N), cov=Theta_true, size=T)
    return data, S_true
@@ -93,7 +96,7 @@ if __name__ == "__main__":
    print(f"seed: {seed}")
    
    data, S_true = generate_data(N, T, seed)
-   print(spectral_range(S_true))
+   print(f'S\'s condition number: {spectral_range(S_true)}')
    
    ogl = OnlineGraphLearning(N, T, P, C, alpha, beta, gamma, S_true)
    S_hat, nses = ogl.run(data)
