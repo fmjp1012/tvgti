@@ -6,7 +6,7 @@ from tqdm import tqdm
 import time
 
 from utils import *
-from models import TimeVaryingSEM
+from models.tvgti_pc import TimeVaryingSEM
 
 # 関数定義
 def generate_random_S(N, sparsity=0.2, max_weight=0.5, seed=None):
