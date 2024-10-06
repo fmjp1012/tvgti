@@ -1,3 +1,4 @@
 # Time-Varing Graph Topology Identification
-- /tvgti-pc (Prediction-Correction)
-- /tvgti-pp (Parallel Projection)
+- Models
+    - tvgti_pc (Prediction-Correction)
+    - tvgti_pp (Parallel Projection)
