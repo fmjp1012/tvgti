@@ -171,3 +171,19 @@ def soft_thresholding( x, threshold):
     - Proximal operator result
     """
     return np.sign(x) * np.maximum(np.abs(x) - threshold, 0.0)
+
+def project_to_zero_diagonal_symmetric(matrix):
+    """
+    任意の行列を対角成分が0の対称行列に射影する関数。
+
+    Parameters:
+    matrix (numpy.ndarray): 射影したい行列。
+
+    Returns:
+    numpy.ndarray: 対角成分が0になった対称行列。
+    """
+    # 行列を対称化
+    symmetric_matrix = (matrix + matrix.T) / 2
+    # 対角成分を0に設定
+    np.fill_diagonal(symmetric_matrix, 0)
+    return symmetric_matrix

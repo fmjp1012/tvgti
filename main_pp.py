@@ -6,7 +6,7 @@ from tqdm import tqdm
 import time
 
 from utils import *
-from models import TimeVaryingSEM
+from models.tvgti_pp import TimeVaryingSEM
 
 def generate_random_S(N, sparsity=0, max_weight=0.5, seed=None):
     """
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     lambda_reg = 0
     gamma = 0.999
     alpha = 0.01
-    beta = 0.01
+    beta = 10
 
     tv_sem = TimeVaryingSEM(N, lambda_reg, alpha, beta, gamma, P, C)
     estimates = tv_sem.run(X)

@@ -82,9 +82,6 @@ class TimeVaryingSEM:
     def compute_time_derivative_gradient(self):
         """
         Computes the time derivative of the gradient for TV-SEM.
-
-        Returns:
-        - time_derivative: Vector of shape (l,)
         """
         self.td_grad = (self.Q_t - self.Q_prev) @ self.s - 2 * (self.tr_sigma_t - self.tr_sigma_prev)
 
@@ -110,12 +107,6 @@ class TimeVaryingSEM:
     def correction_step(self):
         """
         Performs the correction step with C iterations.
-
-        Parameters:
-        - s_pred: Predicted s from the prediction step
-
-        Returns:
-        - s_corr: Corrected s after C iterations
         """
         s_corr = self.s.copy()
         

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from ..utils import elimination_matrix_h, duplication_matrix_h, elimination_matrix_hh, duplication_matrix_hh, soft_thresholding
+from ..utils import elimination_matrix_h, duplication_matrix_h, elimination_matrix_hh, duplication_matrix_hh, soft_thresholding, project_to_zero_diagonal_symmetric
 
 def test_elimination_matrix_h():
     """
@@ -149,6 +149,48 @@ def test_soft_thresholding_large_threshold():
     expected = np.array([0.0, 0.0, 0.0])
     result = soft_thresholding(x, threshold)
     assert np.allclose(result, expected), f"Expected {expected}, but got {result}"
+
+def test_project_to_zero_diagonal_symmetric():
+    # テストケース1: 一般的な正方行列
+    A = np.array([[1, 2, 3],
+                  [4, 5, 6],
+                  [7, 8, 9]])
+    expected_output = np.array([[0, 3, 5],
+                                [3, 0, 7],
+                                [5, 7, 0]])
+    result = project_to_zero_diagonal_symmetric(A)
+    assert np.allclose(result, expected_output), "一般的な正方行列で失敗しました"
+
+    # テストケース2: 対称行列
+    B = np.array([[1, 2],
+                  [2, 3]])
+    expected_output = np.array([[0, 2],
+                                [2, 0]])
+    result = project_to_zero_diagonal_symmetric(B)
+    assert np.allclose(result, expected_output), "対称行列で失敗しました"
+
+    # テストケース3: 対角成分がすでに0の行列
+    C = np.array([[0, 1],
+                  [1, 0]])
+    expected_output = np.array([[0, 1],
+                                [1, 0]])
+    result = project_to_zero_diagonal_symmetric(C)
+    assert np.allclose(result, expected_output), "対角成分が0の行列で失敗しました"
+
+    # テストケース4: 非正方行列（エラーを期待）
+    D = np.array([[1, 2, 3],
+                  [4, 5, 6]])
+    with pytest.raises(ValueError):
+        project_to_zero_diagonal_symmetric(D)
+
+    # テストケース6: 大きな行列
+    size = 100
+    F = np.random.rand(size, size)
+    result = project_to_zero_diagonal_symmetric(F)
+    # 対称性の確認
+    assert np.allclose(result, result.T), "大きな行列で対称性が失われました"
+    # 対角成分が0であることの確認
+    assert np.allclose(np.diag(result), np.zeros(size)), "大きな行列で対角成分が0ではありません"
 
 
 if __name__ == "__main__":

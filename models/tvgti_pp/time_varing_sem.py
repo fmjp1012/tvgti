@@ -35,7 +35,7 @@ class TimeVaryingSEM:
         # Initialize the vectorized S
         self.s = self.E_h @ self.S.flatten()
 
-    def correction_step(self):
+    def correction_step(self, x):
         """
         Performs the correction step with C iterations.
 
@@ -45,12 +45,8 @@ class TimeVaryingSEM:
         Returns:
         - s_corr: Corrected s after C iterations
         """
-        s_corr = self.s.copy()
-        
-        for c in range(self.C):
-            pass
-        
-        
+        self.S = self.S - self.beta * 2 * (self.S @ x @ x.T - x @ x.T)
+        self.s = self.E_h @ self.S.flatten()
     
     def run(self, X):
         """
@@ -66,7 +62,7 @@ class TimeVaryingSEM:
         estimates = []
         for t, x in enumerate(X.T):
             # Correction step
-            self.correction_step()
+            self.correction_step(x)
             
             # Reconstruct the symmetric hollow S matrix
             S_flat = self.D_h @ self.s
