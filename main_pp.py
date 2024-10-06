@@ -8,8 +8,7 @@ import time
 from utils import *
 from models import TimeVaryingSEM
 
-# 関数定義
-def generate_random_S(N, sparsity=0.2, max_weight=0.5, seed=None):
+def generate_random_S(N, sparsity=0, max_weight=0.5, seed=None):
     """
     Generates a random symmetric sparse matrix S with given sparsity and maximum weight.
     Ensures that the spectral radius of S is less than 1 for stability.
@@ -61,7 +60,7 @@ def modify_S(S, edge_indices, factor=2.0):
             S_modified[j, i] *= factor
     return S_modified
 
-def generate_stationary_X(N, T, sparsity=0.2, max_weight=0.5, std_e=np.sqrt(0.5), seed=None):
+def generate_stationary_X(N, T, sparsity=0, max_weight=0.5, std_e=np.sqrt(0.5), seed=None):
     S = generate_random_S(N, sparsity=sparsity, max_weight=max_weight, seed=seed)
     S_series = [S for _ in range(T)]
     e_t_series = np.random.normal(0, std_e, size=(N, T))
@@ -93,7 +92,8 @@ def solve_offline_sem(X_up_to_t, lambda_reg):
     N, t = X_up_to_t.shape
     S = cp.Variable((N, N), symmetric=True)
     
-    objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro') + lambda_reg * cp.norm1(S)
+    # objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro') + lambda_reg * cp.norm1(S)
+    objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro')
     
     constraints = [cp.diag(S) == 0]
     
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     # シミュレーションパラメータ
     N = 10
     T = 500
-    sparsity = 0.2
+    sparsity = 0
     max_weight = 0.4
     change_time = T // 2
     variance_e = 0.5
@@ -124,9 +124,9 @@ if __name__ == "__main__":
                                         std_e=std_e, seed=seed)
 
     # オンラインTV-SEMパラメータ
-    P = 1
+    P = 0
     C = 1
-    lambda_reg = 0.005
+    lambda_reg = 0
     gamma = 0.999
     alpha = 0.01
     beta = 0.01
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     # NSEの時間推移をプロット
     plt.figure(figsize=(10,6))
-    plt.plot(NSE, label='Online TV-SEM (PC)', color='red')
+    plt.plot(NSE, label='Online TV-SEM', color='red')
     plt.xlabel('Time Step')
     plt.ylabel('Normalized Squared Error (NSE)')
     plt.title('NSE between Online TV-SEM and Offline SEM Solutions')
