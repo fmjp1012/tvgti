@@ -1,9 +1,10 @@
 import numpy as np
+from scipy.linalg import norm
 from tqdm import tqdm
-from utils import elimination_matrix_hh, duplication_matrix_hh, soft_thresholding
+from utils import elimination_matrix_hh, duplication_matrix_hh, project_to_zero_diagonal_symmetric
 
 class TimeVaryingSEM:
-    def __init__(self, N, lambda_reg, alpha, beta, gamma, P, C):
+    def __init__(self, N, S_0, lambda_reg, alpha, beta, gamma, P, C, window_size):
         """
         Time-Varying Structural Equation Model (TV-SEM) Prediction-Correction Algorithm
 
@@ -23,6 +24,7 @@ class TimeVaryingSEM:
         self.gamma = gamma
         self.P = P
         self.C = C
+        self.window_size = window_size
 
         # Vectorization: hollow half-vectorization
         self.l = N * (N - 1) // 2
@@ -32,7 +34,7 @@ class TimeVaryingSEM:
         self.E_h_T = self.E_h.T
         
         # Initialize the graph shift operator as a hollow symmetric matrix
-        self.S = np.zeros((N, N))
+        self.S = S_0
         # Initialize the vectorized S
         self.s = self.E_h @ self.S.flatten()
 
@@ -100,8 +102,6 @@ class TimeVaryingSEM:
             grad_approx = self.grad + self.hessian @ (s_pred - self.s) + self.td_grad
             # Update step
             s_pred = s_pred - self.alpha * grad_approx
-            # Apply proximal operator (soft-thresholding)
-            s_pred = soft_thresholding(s_pred, 2 * self.beta * self.lambda_reg)
         
         self.s = s_pred
     
@@ -115,10 +115,22 @@ class TimeVaryingSEM:
             self.compute_gradient(s_corr)
             # Gradient descent step
             s_corr = s_corr - self.beta * self.grad
-            # Apply proximal operator (soft-thresholding)
-            s_corr = soft_thresholding(s_corr, 2 * self.beta * self.lambda_reg)
         
         self.s = s_corr
+
+    def pp_step(self, x):
+        subgrad = self.S @ x @ x.T - x @ x.T
+        # self.S = self.S - (norm(x - self.S @ x) - 0.001) * (subgrad) / (norm(subgrad) ** 2)
+        self.S = self.S - self.beta * (subgrad)
+        self.S = project_to_zero_diagonal_symmetric(self.S)
+        self.s = self.E_h @ self.S.flatten()
+
+    def pp_step_window(self, X_partial):
+        subgrad = self.S @ X_partial @ X_partial.T - X_partial @ X_partial.T
+        # self.S = self.S - (norm(x - self.S @ x) - 0.001) * (subgrad) / (norm(subgrad) ** 2)
+        self.S = self.S - self.beta * (subgrad)
+        self.S = project_to_zero_diagonal_symmetric(self.S)
+        self.s = self.E_h @ self.S.flatten()
     
     def run(self, X):
         """
@@ -144,7 +156,12 @@ class TimeVaryingSEM:
             self.update_covariance(x)
             
             # Correction step
-            self.correction_step()
+            # self.correction_step()
+
+            if self.window_size > 1 and t >= self.window_size - 1:
+                self.pp_step_window(X[:, t - self.window_size: t+1])
+            else:
+                self.pp_step(x)
             
             # Reconstruct the symmetric hollow S matrix
             S_flat = self.D_h @ self.s
