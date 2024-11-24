@@ -67,9 +67,7 @@ class TimeVaryingSEM:
             # print("start------------------------------")
             # print("t: " + str(t))
             if t - self.q * self.r >= 0:
-                self.parallel_projection(X[:, t - self.q * self.r: t])
-            else:
-                self.parallel_projection(X[:, :t+1])
+                self.parallel_projection(X[:, t - self.q * self.r: t+1])
             
             # print("norm of S: " + str(norm(self.S)))
             # print("end------------------------------")

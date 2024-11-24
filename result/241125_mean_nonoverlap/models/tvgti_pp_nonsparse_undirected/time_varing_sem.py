@@ -36,7 +36,7 @@ class TimeVaryingSEM:
 
 
         for i in range(self.q):
-            x_per_processor = X_partial[:, i * self.q: i * self.q + self.r]
+            x_per_processor = X_partial[:, i: self.r]
 
             projection_sp = self.subgrad_projection(x_per_processor)
 
@@ -66,10 +66,8 @@ class TimeVaryingSEM:
         for t, x in enumerate(tqdm(X.T, desc="pp_nonsparse")):
             # print("start------------------------------")
             # print("t: " + str(t))
-            if t - self.q * self.r >= 0:
-                self.parallel_projection(X[:, t - self.q * self.r: t])
-            else:
-                self.parallel_projection(X[:, :t+1])
+            if t - self.q - self.r + 2 >= 0:
+                self.parallel_projection(X[:, t - self.q - self.r + 2: t+1])
             
             # print("norm of S: " + str(norm(self.S)))
             # print("end------------------------------")
