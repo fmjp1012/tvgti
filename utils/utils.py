@@ -30,7 +30,7 @@ def persistent_cache(cache_dir="matrix_cache"):
                 try:
                     # キャッシュファイルの読み込み
                     matrix = load_npz(cache_path)
-                    print(f"Loaded cached matrix from {cache_path}")
+                    # print(f"Loaded cached matrix from {cache_path}")
                     return matrix
                 except Exception as e:
                     print(f"Failed to load cache from {cache_path}: {e}")
