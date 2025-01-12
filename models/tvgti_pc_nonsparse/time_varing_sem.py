@@ -3,13 +3,16 @@ from tqdm import tqdm
 from utils import elimination_matrix_hh, duplication_matrix_hh
 
 class TimeVaryingSEM:
-    def __init__(self, N, S_0, alpha, beta, gamma, P, C):
+    def __init__(self, N, S_0, alpha, beta, gamma, P, C, show_progress=True):
         self.N = N
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.P = P
         self.C = C
+        
+        # tqdmの表示を制御するフラグ
+        self.show_progress = show_progress
 
         # Vectorization: hollow half-vectorization
         self.l = N * (N - 1) // 2
@@ -24,8 +27,6 @@ class TimeVaryingSEM:
         self.s = self.E_h @ self.S.flatten()
 
         # Initialize empirical covariance matrix
-        # self.Sigma_t = np.eye(N)
-        # self.Sigma_prev = np.eye(N)
         self.Sigma_t = np.zeros((N, N))
         self.Sigma_prev = np.zeros((N, N))
         
@@ -83,13 +84,20 @@ class TimeVaryingSEM:
         term1 = 0.5 * self.s.T @ self.Q_t @ self.s
         term2 = -2 * self.s.T @ self.sigma_t
         term3 = 0.5 * self.tr_sigma_t
-        
         return term1 + term2 + term3
     
     def run(self, X):
         estimates = []
         cost_values = []
-        for t, x in enumerate(tqdm(X.T, desc=f"pc_nonsparse_{self.gamma}")):
+        
+        # tqdm を使うかどうかを self.show_progress で制御
+        if self.show_progress:
+            iterator = tqdm(X.T, desc=f"pc_nonsparse_{self.gamma}")
+        else:
+            # tqdmを使わずに通常のforループ
+            iterator = X.T
+        
+        for t, x in enumerate(iterator):
             self.Sigma_prev = self.Sigma_t.copy()
             self.tr_sigma_prev = self.tr_sigma_t
             self.Q_prev = self.Q_t.copy()
