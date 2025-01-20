@@ -203,11 +203,11 @@ plt.rcParams["font.size"] = 15                       #フォントの大きさ
 
 # %%
 # 試行回数の設定
-num_trials = 100
+num_trials = 10
 
 # パラメータの設定
-N = 30
-T = 8000
+N = 10
+T = 20000
 sparsity = 100
 max_weight = 0.5
 variance_e = 0.005
@@ -221,15 +221,16 @@ seed = 42  # 基本のシード
 P = 1
 C = 1
 gamma = 0.999
-alpha = 0.01
-beta_pc = 0.01
-beta_co = 0.01
-beta_sgd = 0.01
+alpha = 0.015
+beta_pc = 0.015
+beta_co = 0.02
+beta_sgd = 0.02
 
 # その他のパラメータ
-r = 30  # window size
-q = 10  # number of processors
-rho = 2.4
+r = 4  # window size
+q = 20  # number of processors
+rho = 0.15
+mu_lambda = 0.5
 
 def run_trial(trial_seed):
     np.random.seed(trial_seed)  # シードを試行ごとに設定
@@ -248,7 +249,7 @@ def run_trial(trial_seed):
     tv_sem_pc = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_pc, gamma, P, C, False)
     tv_sem_co = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_co, gamma, 0, C, False)
     tv_sem_sgd = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_sgd, 0, 0, C, False)
-    tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, False)
+    tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, mu_lambda, False)
 
     # 並列処理を無効化するために直接呼び出しているが、Parallel( n_jobs=... ) を使ってもOK
     estimates_pc, cost_values_pc = tv_sem_pc.run(X)
@@ -331,6 +332,7 @@ filename = (
     f'r{r}_'
     f'q{q}_'
     f'rho{rho}_'
+    f'mu_lambda{mu_lambda}_'
     f'timestamp{timestamp}_.png'
 )
 
@@ -341,8 +343,11 @@ os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-notebook_filename = "sandbox_mean.py"  # ★使用中のNotebook名を入力
-copy_ipynb_path = os.path.join(save_path, f"notebook_backup_{timestamp}.py")
+notebook_filename = "sandbox_mean.ipynb"  # ★使用中のNotebook名を入力
+copy_ipynb_path = os.path.join(save_path, f"notebook_backup_{timestamp}.ipynb")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
+
+
+
