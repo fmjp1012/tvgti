@@ -5,7 +5,7 @@ from tqdm import tqdm
 from utils import project_to_zero_diagonal_symmetric
 
 class TimeVaryingSEM:
-    def __init__(self, N, S_0, r, q, rho, show_progress=True):
+    def __init__(self, N, S_0, r, q, rho, mu_lambda, show_progress=True):
         self.N = N
         self.l = N * (N - 1) // 2
         self.S = S_0
@@ -15,6 +15,9 @@ class TimeVaryingSEM:
 
         self.rho = rho
         self.w = 1 / q
+
+        self.mu_lambda = mu_lambda
+        assert self.mu_lambda > 0 and self.mu_lambda < 2
 
         # tqdmの表示／非表示を制御するフラグ
         self.show_progress = show_progress
@@ -50,7 +53,7 @@ class TimeVaryingSEM:
             assert numerator > 0
             denominator = norm(sum_weighted_projection_sp - self.S) ** 2
             M_k = numerator / denominator
-            self.S = self.S + M_k * (sum_weighted_projection_sp - self.S)
+            self.S = self.S + self.mu_lambda * M_k * (sum_weighted_projection_sp - self.S)
             np.fill_diagonal(self.S, 0)  # Ensure diagonal elements are zero
         else:
             M_k = 1
