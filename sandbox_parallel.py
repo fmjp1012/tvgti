@@ -181,6 +181,72 @@ def solve_offline_sem(X_up_to_t, lambda_reg):
     S_opt = S.value
     return S_opt
 
+def calc_snr(S: np.ndarray) -> float:
+    """
+    与えられた行列 S (NxN) に対して、
+    SNR = (1/N) * tr( (I - S)^-1 * (I - S)^-T ) を計算する。
+    """
+    N = S.shape[0]
+    I = np.eye(N)
+    inv_mat = np.linalg.inv(I - S)  # (I - S)^-1
+    # (I - S)^-1 (I - S)^-T = inv_mat @ inv_mat.T
+    val = np.trace(inv_mat @ inv_mat.T)
+    return val / N
+
+def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
+                           tol=1e-6, max_iter=100) -> np.ndarray:
+    """
+    与えられた S (NxN) をスケーリングする係数 alpha を見つけて、
+    (I - alpha*S) が可逆 & スペクトル半径 < 1 となる範囲で
+    目標とする snr_target に近い SNR を実現するように返す。
+    """
+    # 前提: S は正方行列
+    N = S.shape[0]
+    
+    # スペクトル半径を計算
+    eigvals = np.linalg.eigvals(S)
+    rho_S = max(abs(eigvals))
+    
+    # もし rho_S == 0 なら、S=0 の場合などで SNR=1 が常に得られる
+    # ここでは簡単に場合分け
+    if rho_S == 0:
+        current_snr = calc_snr(S * 0.0)  # = 1/N * tr(I * I^T) = 1
+        if abs(current_snr - snr_target) < tol:
+            return S  # そのまま
+        else:
+            # どうにもならないので、とりあえず返しておく
+            return S
+    
+    # alpha の上限: ここでは 1/(rho_S + ちょっとのマージン) とする
+    alpha_high = 1.0 / rho_S * 0.999  # 安全のため少しだけ小さめにする
+    alpha_low = 0.0
+    
+    # 2分探索
+    for _ in range(max_iter):
+        alpha_mid = 0.5 * (alpha_low + alpha_high)
+        
+        # (I - alpha*S) が可逆かチェック -> np.linalg.inv がエラーを吐かないか確かめる
+        try:
+            tmp_snr = calc_snr(alpha_mid * S)
+        except np.linalg.LinAlgError:
+            # 可逆でなかったら、もう少し alpha を小さくする
+            alpha_high = alpha_mid
+            continue
+        
+        if tmp_snr > snr_target:
+            # 目標より SNR が高いので、alpha を小さく
+            alpha_high = alpha_mid
+        else:
+            # 目標より SNR が低いので、alpha を大きく
+            alpha_low = alpha_mid
+        
+        # 収束チェック
+        if abs(tmp_snr - snr_target) < tol:
+            break
+    
+    alpha_star = 0.5 * (alpha_low + alpha_high)
+    return alpha_star * S
+
 
 # %%
 plt.rc('text',usetex=True)
@@ -224,6 +290,9 @@ np.random.seed(seed)
 
 # TV-SEMシミュレーション
 S_series, X = generate_piecewise_X_K(N, T, S_is_symmetric, sparsity, max_weight, std_e, K)
+
+snr_before = calc_snr(S_series[0])
+print("Before scaling, SNR =", snr_before)
 
 # オンラインTV-SEMパラメータ
 P = 1
