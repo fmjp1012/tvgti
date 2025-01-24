@@ -3,7 +3,7 @@ from tqdm import tqdm
 from utils import elimination_matrix_hh, duplication_matrix_hh
 
 class TimeVaryingSEM:
-    def __init__(self, N, S_0, alpha, beta, gamma, P, C, show_progress=True):
+    def __init__(self, N, S_0, alpha, beta, gamma, P, C, show_progress=True, name = "pc_nonsparse"):
         self.N = N
         self.alpha = alpha
         self.beta = beta
@@ -13,6 +13,7 @@ class TimeVaryingSEM:
         
         # tqdmの表示を制御するフラグ
         self.show_progress = show_progress
+        self.name = name
 
         # Vectorization: hollow half-vectorization
         self.l = N * (N - 1) // 2
@@ -92,7 +93,7 @@ class TimeVaryingSEM:
         
         # tqdm を使うかどうかを self.show_progress で制御
         if self.show_progress:
-            iterator = tqdm(X.T, desc=f"pc_nonsparse_{self.gamma}")
+            iterator = tqdm(X.T, desc=self.name)
         else:
             # tqdmを使わずに通常のforループ
             iterator = X.T

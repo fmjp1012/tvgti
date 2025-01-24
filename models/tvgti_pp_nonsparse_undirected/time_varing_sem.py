@@ -5,7 +5,7 @@ from tqdm import tqdm
 from utils import project_to_zero_diagonal_symmetric
 
 class TimeVaryingSEM:
-    def __init__(self, N, S_0, r, q, rho, mu_lambda, show_progress=True):
+    def __init__(self, N, S_0, r, q, rho, mu_lambda, show_progress=True, name = "pp_nonsparse"):
         self.N = N
         self.l = N * (N - 1) // 2
         self.S = S_0
@@ -21,6 +21,7 @@ class TimeVaryingSEM:
 
         # tqdmの表示／非表示を制御するフラグ
         self.show_progress = show_progress
+        self.name = name
 
     def g_l(self, x): # per processor
         return norm(x - self.S @ x) ** 2 / 2 - self.rho
@@ -64,7 +65,7 @@ class TimeVaryingSEM:
         
         # tqdmを使うか通常のイテレータにするかをフラグで切り替え
         if self.show_progress:
-            iterator = tqdm(X.T, desc="pp_nonsparse")
+            iterator = tqdm(X.T, desc=self.name)
         else:
             iterator = X.T
 
