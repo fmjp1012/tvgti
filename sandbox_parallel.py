@@ -487,8 +487,8 @@ os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-notebook_filename: str = "sandbox_parallel.ipynb"  # ★使用中のNotebook名を入力
-copy_ipynb_path: str = os.path.join(save_path, f"notebook_backup_{timestamp}.ipynb")
+notebook_filename: str = "sandbox_parallel.py"  # ★使用中のNotebook名を入力
+copy_ipynb_path: str = os.path.join(save_path, f"sandbox_parallel_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
