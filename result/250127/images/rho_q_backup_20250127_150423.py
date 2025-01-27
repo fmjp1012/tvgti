@@ -42,7 +42,6 @@ def calc_snr(S: np.ndarray) -> float:
     N = S.shape[0]
     I = np.eye(N)
     inv_mat = np.linalg.inv(I - S)  # (I - S)^-1
-    # (I - S)^-1 (I - S)^-T = inv_mat @ inv_mat.T
     val = np.trace(inv_mat @ inv_mat.T)
     return val / N
 
@@ -53,53 +52,44 @@ def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
     (I - alpha*S) が可逆 & スペクトル半径 < 1 となる範囲で
     目標とする snr_target に近い SNR を実現するように返す。
     """
-    # 前提: S は正方行列
     N = S.shape[0]
     
     # スペクトル半径を計算
-    eigvals = np.linalg.eigvals(S)
-    rho_S = max(abs(eigvals))
+    eigvals_S = np.linalg.eigvals(S)
+    rho_S = max(abs(eigvals_S))
     
-    # もし rho_S == 0 なら、S=0 の場合などで SNR=1 が常に得られる
-    # ここでは簡単に場合分け
+    # もし rho_S == 0 なら、S=0 の場合などで SNR=1
     if rho_S == 0:
-        current_snr = calc_snr(S * 0.0)  # = 1/N * tr(I * I^T) = 1
+        current_snr = calc_snr(S * 0.0)  # = 1
         if abs(current_snr - snr_target) < tol:
             return S  # そのまま
         else:
-            # どうにもならないので、とりあえず返しておく
             return S
     
-    # alpha の上限: ここでは 1/(rho_S + ちょっとのマージン) とする
-    alpha_high = 1.0 / rho_S * 0.999  # 安全のため少しだけ小さめにする
+    # alpha の上限: ここでは 1/(rho_S) に少しマージンをかける
+    alpha_high = 1.0 / rho_S * 0.999
     alpha_low = 0.0
     
-    # 2分探索
     for _ in range(max_iter):
         alpha_mid = 0.5 * (alpha_low + alpha_high)
-        
-        # (I - alpha*S) が可逆かチェック -> np.linalg.inv がエラーを吐かないか確かめる
         try:
             tmp_snr = calc_snr(alpha_mid * S)
         except np.linalg.LinAlgError:
-            # 可逆でなかったら、もう少し alpha を小さくする
             alpha_high = alpha_mid
             continue
         
         if tmp_snr > snr_target:
-            # 目標より SNR が高いので、alpha を小さく
             alpha_high = alpha_mid
         else:
-            # 目標より SNR が低いので、alpha を大きく
             alpha_low = alpha_mid
         
-        # 収束チェック
         if abs(tmp_snr - snr_target) < tol:
             break
     
     alpha_star = 0.5 * (alpha_low + alpha_high)
     return alpha_star * S
 
+# LaTeXフォントやプロット周りの設定
 plt.rc('text',usetex=True)
 plt.rc('font',family="serif")
 plt.rcParams["font.family"] = "Times New Roman"
@@ -169,6 +159,19 @@ tv_sem_co = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_co, gamma, 0, C, nam
 tv_sem_sgd = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_sgd, 0, 0, C, name="sgd")
 tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, mu_lambda, name="pp")
 
+# 実行関数の定義
+def run_tv_sem_pc() -> Tuple[List[np.ndarray], List[float]]:
+    estimates_pc, cost_values_pc = tv_sem_pc.run(X)
+    return estimates_pc, cost_values_pc
+
+def run_tv_sem_co() -> Tuple[List[np.ndarray], List[float]]:
+    estimates_co, cost_values_co = tv_sem_co.run(X)
+    return estimates_co, cost_values_co
+
+def run_tv_sem_sgd() -> Tuple[List[np.ndarray], List[float]]:
+    estimates_sgd, cost_values_sgd = tv_sem_sgd.run(X)
+    return estimates_sgd, cost_values_sgd
+
 def run_tv_sem_pp(r_val: int, q_val: int) -> List[np.ndarray]:
     """
     r_val, q_val を指定して Proposed (PP) 手法を走らせる。
@@ -183,6 +186,13 @@ def run_tv_sem_pp(r_val: int, q_val: int) -> List[np.ndarray]:
 #----------------------------------------------------
 # ここで実行対象の関数だけリストを作って並列実行
 job_list = []
+if run_pc_flag:
+    job_list.append(delayed(run_tv_sem_pc)())
+if run_co_flag:
+    job_list.append(delayed(run_tv_sem_co)())
+if run_sgd_flag:
+    job_list.append(delayed(run_tv_sem_sgd)())
+# pp手法は後でパラメータを変えて複数回実行するので、ここでは単発実行をしない
 
 results = Parallel(n_jobs=4)(job_list)
 #----------------------------------------------------
@@ -194,6 +204,19 @@ estimates_co: List[np.ndarray] = []
 cost_values_co: List[float] = []
 estimates_sgd: List[np.ndarray] = []
 cost_values_sgd: List[float] = []
+
+idx_result: int = 0
+if run_pc_flag:
+    estimates_pc, cost_values_pc = results[idx_result]
+    idx_result += 1
+
+if run_co_flag:
+    estimates_co, cost_values_co = results[idx_result]
+    idx_result += 1
+
+if run_sgd_flag:
+    estimates_sgd, cost_values_sgd = results[idx_result]
+    idx_result += 1
 
 #====================================================
 # ここからがポイント：pp手法で r または q を変化させて比較する
@@ -242,6 +265,15 @@ def calc_nse_series(estimates_list: List[np.ndarray], true_S_list: List[np.ndarr
         nse_arr.append(nse_val)
     return nse_arr
 
+# まず PC/CO/SGD の NSE を計算する (必要な場合)
+error_pc, error_co, error_sgd = [], [], []
+if run_pc_flag:
+    error_pc = calc_nse_series(estimates_pc, S_series, S_0)
+if run_co_flag:
+    error_co = calc_nse_series(estimates_co, S_series, S_0)
+if run_sgd_flag:
+    error_sgd = calc_nse_series(estimates_sgd, S_series, S_0)
+
 #----------------------------------------------------
 # r を変化させた pp の NSE を計算
 #----------------------------------------------------
@@ -260,13 +292,48 @@ if run_pp_flag:
         estimates_q = pp_estimates_for_q[q_val]
         pp_error_for_q[q_val] = calc_nse_series(estimates_q, S_series, S_0)
 
+
+#====================================================
+# 結果の可視化
+#====================================================
+# ここでは例として:
+#  - PC/CO/SGD として1つの図(比較)
+#  - rを変化させたppで1つの図(比較)
+#  - qを変化させたppで1つの図(比較)
+# の計3つを作る流れを示します。
+# 必要に応じて調整してください。
+#====================================================
+
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 today_str: str = datetime.datetime.now().strftime('%y%m%d')
 save_path: str = f'./result/{today_str}/images'
 os.makedirs(save_path, exist_ok=True)
 
+
 #--------------------------
-# Proposed手法: r を変化
+# (1) PC / CO / SGD の比較
+#--------------------------
+plt.figure(figsize=(10,6))
+if run_co_flag:
+    plt.plot(error_co, color='blue', label='Correction Only')
+if run_pc_flag:
+    plt.plot(error_pc, color='limegreen', label='Prediction Correction')
+if run_sgd_flag:
+    plt.plot(error_sgd, color='cyan', label='SGD')
+
+plt.yscale('log')
+plt.xlim(left=0, right=T)
+plt.xlabel('t')
+plt.ylabel('NSE')
+plt.grid(True, "both")
+plt.legend()
+filename_pc_co_sgd = f'compare_PC_CO_SGD_{timestamp}.png'
+plt.savefig(os.path.join(save_path, filename_pc_co_sgd))
+plt.show()
+
+
+#--------------------------
+# (2) Proposed手法: r を変化
 #--------------------------
 plt.figure(figsize=(10,6))
 for r_val in r_list:
@@ -285,7 +352,7 @@ plt.show()
 
 
 #--------------------------
-# Proposed手法: q を変化
+# (3) Proposed手法: q を変化
 #--------------------------
 plt.figure(figsize=(10,6))
 for q_val in q_list:
