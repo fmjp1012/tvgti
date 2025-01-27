@@ -1,4 +1,3 @@
-# %%
 import shutil
 import os
 import datetime
@@ -101,8 +100,6 @@ def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
     alpha_star = 0.5 * (alpha_low + alpha_high)
     return alpha_star * S
 
-
-# %%
 plt.rc('text',usetex=True)
 plt.rc('font',family="serif")
 plt.rcParams["font.family"] = "Times New Roman"      #全体のフォントを設定
@@ -120,7 +117,6 @@ plt.rcParams["xtick.minor.size"] = 5                #x軸補助目盛り線の�
 plt.rcParams["ytick.minor.size"] = 5                #y軸補助目盛り線の長さ
 plt.rcParams["font.size"] = 15                       #フォントの大きさ
 
-# %%
 #----------------------------------------------------
 # メソッドごとの実行スイッチ
 run_pc_flag: bool = True     # Prediction Correction
@@ -132,14 +128,14 @@ run_pp_flag: bool = True     # Proposed
 # パラメータの設定
 N: int = 10
 T: int = 20000
-sparsity: float = 100
+sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
 K: int = 4
 S_is_symmetric: bool = True
 
-seed: int = 30
+seed: int = 3
 np.random.seed(seed)
 
 # TV-SEMシミュレーション
@@ -158,11 +154,7 @@ beta_co: float = 0.02
 beta_sgd: float = 0.02
 
 # 初期値の設定
-if S_is_symmetric:
-    S_0: np.ndarray = generate_random_S(N, sparsity, max_weight)
-else:
-    S_0: np.ndarray = generate_random_S_with_off_diagonal(N, sparsity, max_weight)
-
+S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
 # その他のパラメータ

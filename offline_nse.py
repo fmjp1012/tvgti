@@ -121,10 +121,7 @@ beta_co: float = 0.02
 beta_sgd: float = 0.02
 
 # Initial guess
-if S_is_symmetric:
-    S_0: np.ndarray = generate_random_S(N, sparsity, max_weight)
-else:
-    S_0: np.ndarray = generate_random_S_with_off_diagonal(N, sparsity, max_weight)
+S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
 # Proposed model parameters
