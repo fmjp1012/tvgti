@@ -96,8 +96,8 @@ run_pp_flag: bool = True     # Proposed
 
 # Parameters
 N: int = 10
-T: int = 10000
-sparsity: float = 100
+T: int = 20000
+sparsity: float = 0 # 0 ~ 1
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
@@ -121,10 +121,7 @@ beta_co: float = 0.02
 beta_sgd: float = 0.02
 
 # Initial guess
-if S_is_symmetric:
-    S_0: np.ndarray = generate_random_S(N, sparsity, max_weight)
-else:
-    S_0: np.ndarray = generate_random_S_with_off_diagonal(N, sparsity, max_weight)
+S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
 # Proposed model parameters
@@ -195,18 +192,7 @@ n_jobs = -1
 
 lambda_reg = 0
 
-memory = Memory(location='./cache_dir', verbose=0)
-
-@memory.cache
-def solve_for_t(t, X):
-    # solve_offline_sem は既に定義されている仮定
-    return solve_offline_sem(X[:, :t], lambda_reg=lambda_reg)
-
-# tqdm でレンジをラップしつつ、joblib.Parallel で並列化
-S_offline_list = Parallel(n_jobs=n_jobs)(
-    delayed(solve_for_t)(t, X) 
-    for t in tqdm(range(1, T+1), desc="Computing offline solutions in parallel")
-)
+offline_sol = solve_offline_sem(X, lambda_reg)
 
 # -----------------------------------------------------------------
 # 2) Compute the Normalized Squared Error = || S_est - S^*_t ||^2 / || S^*_t ||^2
@@ -219,28 +205,24 @@ NSE_pp: List[float] = []
 # For PC
 if run_pc_flag:
     for i, est in enumerate(estimates_pc):
-        offline_sol = S_offline_list[i]
         nse_val = norm(est - offline_sol)**2 / (norm(offline_sol)**2 + 1e-12)
         NSE_pc.append(nse_val)
 
 # For CO
 if run_co_flag:
     for i, est in enumerate(estimates_co):
-        offline_sol = S_offline_list[i]
         nse_val = norm(est - offline_sol)**2 / (norm(offline_sol)**2 + 1e-12)
         NSE_co.append(nse_val)
 
 # For SGD
 if run_sgd_flag:
     for i, est in enumerate(estimates_sgd):
-        offline_sol = S_offline_list[i]
         nse_val = norm(est - offline_sol)**2 / (norm(offline_sol)**2 + 1e-12)
         NSE_sgd.append(nse_val)
 
 # For Proposed
 if run_pp_flag:
     for i, est in enumerate(estimates_pp):
-        offline_sol = S_offline_list[i]
         nse_val = norm(est - offline_sol)**2 / (norm(offline_sol)**2 + 1e-12)
         NSE_pp.append(nse_val)
 
@@ -280,6 +262,6 @@ plt.show()
 
 # Back up this script
 notebook_filename: str = "offline_nse.py"
-copy_ipynb_path: str = os.path.join(save_path, f"offline_nse_backup_{timestamp}.py")
+copy_ipynb_path: str = os.path.join(save_path, f"offline_nse_2_backup_{timestamp}.py")
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
