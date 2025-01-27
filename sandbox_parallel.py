@@ -304,8 +304,11 @@ plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
+notebook_filename: str = "sandbox_parallel.py"  # ★使用中のNotebook名を入力
+
 filename: str = (
     f'result_N{N}_'
+    f'notebook_filename{notebook_filename}_'
     f'T{T}_'
     f'maxweight{max_weight}_'
     f'variancee{variance_e}_'
@@ -333,7 +336,6 @@ os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-notebook_filename: str = "sandbox_parallel.py"  # ★使用中のNotebook名を入力
 copy_ipynb_path: str = os.path.join(save_path, f"sandbox_parallel_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)

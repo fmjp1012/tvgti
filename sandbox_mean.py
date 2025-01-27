@@ -313,8 +313,11 @@ plt.legend()
 
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
+notebook_filename = "sandbox_mean.py"  # ★使用中のNotebook名を入力
+
 filename = (
     f'result_N{N}_'
+    f'notebook_filename{notebook_filename}_'
     f'num_trials{num_trials}_'
     f'T{T}_'
     f'maxweight{max_weight}_'
@@ -343,8 +346,7 @@ os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-notebook_filename = "sandbox_mean.ipynb"  # ★使用中のNotebook名を入力
-copy_ipynb_path = os.path.join(save_path, f"sandbox_mean_backup_{timestamp}.ipynb")
+copy_ipynb_path = os.path.join(save_path, f"sandbox_mean_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

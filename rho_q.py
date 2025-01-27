@@ -452,9 +452,11 @@ plt.grid(True, "both")
 plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+notebook_filename: str = "rho_q.py"
 
 filename: str = (
     f'result_N{N}_'
+    f'notebook_filename{notebook_filename}_'
     f'T{T}_'
     f'maxweight{max_weight}_'
     f'variancee{variance_e}_'
@@ -482,7 +484,6 @@ os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-notebook_filename: str = "rho_q.py"
 copy_ipynb_path: str = os.path.join(save_path, f"rho_q_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
