@@ -261,7 +261,7 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 # Back up this script
-notebook_filename: str = "offline_nse.py"
+notebook_filename: str = "offline_nse_2.py"
 copy_ipynb_path: str = os.path.join(save_path, f"offline_nse_2_backup_{timestamp}.py")
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

@@ -344,7 +344,7 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 notebook_filename = "sandbox_mean.ipynb"  # ★使用中のNotebook名を入力
-copy_ipynb_path = os.path.join(save_path, f"notebook_backup_{timestamp}.ipynb")
+copy_ipynb_path = os.path.join(save_path, f"sandbox_mean_backup_{timestamp}.ipynb")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
