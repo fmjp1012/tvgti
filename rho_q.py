@@ -15,152 +15,6 @@ from utils import *
 from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
-def generate_random_S(N: int, sparsity: float, max_weight: float) -> np.ndarray:
-    S = np.zeros((N, N))
-    
-    for i in range(N):
-        for j in range(i + 1, N):
-            if np.random.rand() < sparsity:
-                weight = np.random.uniform(-max_weight, max_weight)
-                # weight = np.random.uniform(0, max_weight)
-                S[i, j] = weight
-                S[j, i] = weight
-    
-    # Ensure spectral radius < 1
-    spectral_radius = max(abs(eigvals(S)))
-    if spectral_radius >= 1:
-        S = S / (spectral_radius + 0.1)
-
-    S = S / norm(S)
-    return S
-
-def generate_random_S_with_off_diagonal(N: int, sparsity: float, max_weight: float) -> np.ndarray:
-    S = np.zeros((N, N))
-    
-    for i in range(N):
-        for j in range(N):
-            if i != j and np.random.rand() < sparsity:
-                weight = np.random.uniform(-max_weight, max_weight)
-                # weight = np.random.uniform(0, max_weight)
-                S[i, j] = weight
-    
-    # Ensure spectral radius < 1
-    spectral_radius = max(abs(eigvals(S)))
-    if spectral_radius >= 1:
-        S = S / (spectral_radius + 0.1)
-
-    S = S / norm(S)
-    return S
-
-def modify_S(S: np.ndarray, edge_indices: List[Tuple[int, int]], factor: float = 2.0) -> np.ndarray:
-    S_modified = S.copy()
-    for (i, j) in edge_indices:
-        if i != j:
-            S_modified[i, j] *= factor
-            S_modified[j, i] *= factor
-    return S_modified
-
-def generate_stationary_X(N: int, T: int, S_is_symmetric: bool, sparsity: float, max_weight: float, std_e: float) -> Tuple[List[np.ndarray], np.ndarray, np.ndarray]:
-    if S_is_symmetric:
-        S = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
-    else:
-        S = generate_random_S_with_off_diagonal(N, sparsity=sparsity, max_weight=max_weight)
-    S_series = [S for _ in range(T)]
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    I = np.eye(N)
-    try:
-        inv_I_S = inv(I - S)
-    except np.linalg.LinAlgError:
-        raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    X = inv_I_S @ e_t_series
-
-    return S_series, X, e_t_series
-
-def generate_stationary_X_from_S(S: np.ndarray, N: int, T: int, std_e: float) -> Tuple[List[np.ndarray], np.ndarray]:
-    S = S
-    S_series = [S for _ in range(T)]
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    I = np.eye(N)
-    try:
-        inv_I_S = inv(I - S)
-    except np.linalg.LinAlgError:
-        raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    X = inv_I_S @ e_t_series
-
-    return S_series, X
-
-def generate_piecewise_X(N: int, T: int, S_is_symmetric: bool, sparsity: float, max_weight: float, std_e: float) -> Tuple[List[np.ndarray], np.ndarray]:
-    max_weight_0 = max_weight
-    max_weight_1 = max_weight
-    if S_is_symmetric:
-        S0 = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
-    else:
-        S0 = generate_random_S_with_off_diagonal(N, sparsity=sparsity, max_weight=max_weight)
-    # S1 = generate_random_S(N, sparsity=sparsity, max_weight=max_weight_1)
-    S1 = S0*2
-    S_series = [S0 for _ in range(T // 2)] + [S1 for _ in range(T - T // 2)]
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    I = np.eye(N)
-    try:
-        inv_I_S0 = inv(I - S0)
-        inv_I_S1 = inv(I - S1)
-    except np.linalg.LinAlgError:
-        raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    X0 = inv_I_S0 @ e_t_series[:, :T // 2]
-    X1 = inv_I_S1 @ e_t_series[:, T // 2:]
-    X = np.concatenate([X0, X1], axis=1)
-
-    return S_series, X
-
-def generate_piecewise_X_K(N: int, T: int, S_is_symmetric: bool, sparsity: float, max_weight: float, std_e: float, K: int) -> Tuple[List[np.ndarray], np.ndarray]:
-    S_list = []
-    inv_I_S_list = []
-    I = np.eye(N)
-
-    for i in range(K):
-        if S_is_symmetric:
-            S = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
-        else:
-            S = generate_random_S_with_off_diagonal(N, sparsity=sparsity, max_weight=max_weight)
-        S_list.append(S)
-        try:
-            inv_I_S = inv(I - S)
-            inv_I_S_list.append(inv_I_S)
-        except np.linalg.LinAlgError:
-            raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    # Divide T into K segments
-    segment_lengths = [T // K] * K
-    segment_lengths[K-1] += T % K
-
-    # Create S_series
-    S_series = []
-    for i, length in enumerate(segment_lengths):
-        S_series.extend([S_list[i]] * length)
-
-    # Generate error terms
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    # Compute X
-    X_list = []
-    start = 0
-    for i, length in enumerate(segment_lengths):
-        end = start + length
-        X_i = inv_I_S_list[i] @ e_t_series[:, start:end]
-        X_list.append(X_i)
-        start = end
-
-    X = np.concatenate(X_list, axis=1)
-
-    return S_series, X
-
-
 def solve_offline_sem(X_up_to_t: np.ndarray, lambda_reg: float) -> np.ndarray:
     N, t = X_up_to_t.shape
     S = cp.Variable((N, N), symmetric=True)
@@ -248,20 +102,20 @@ def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
 
 plt.rc('text',usetex=True)
 plt.rc('font',family="serif")
-plt.rcParams["font.family"] = "Times New Roman"      #全体のフォントを設定
-plt.rcParams["xtick.direction"] = "in"               #x軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
-plt.rcParams["ytick.direction"] = "in"               #y軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
-plt.rcParams["xtick.minor.visible"] = True          #x軸補助目盛りの追加
-plt.rcParams["ytick.minor.visible"] = True          #y軸補助目盛りの追加
-plt.rcParams["xtick.major.width"] = 1.5              #x軸主目盛り線の線幅
-plt.rcParams["ytick.major.width"] = 1.5              #y軸主目盛り線の線幅
-plt.rcParams["xtick.minor.width"] = 1.0              #x軸補助目盛り線の線幅
-plt.rcParams["ytick.minor.width"] = 1.0              #y軸補助目盛り線の線幅
-plt.rcParams["xtick.major.size"] = 10                #x軸主目盛り線の長さ
-plt.rcParams["ytick.major.size"] = 10                #y軸主目盛り線の長さ
-plt.rcParams["xtick.minor.size"] = 5                #x軸補助目盛り線の長さ
-plt.rcParams["ytick.minor.size"] = 5                #y軸補助目盛り線の長さ
-plt.rcParams["font.size"] = 15                       #フォントの大きさ
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["xtick.direction"] = "in"
+plt.rcParams["ytick.direction"] = "in"
+plt.rcParams["xtick.minor.visible"] = True
+plt.rcParams["ytick.minor.visible"] = True
+plt.rcParams["xtick.major.width"] = 1.5
+plt.rcParams["ytick.major.width"] = 1.5
+plt.rcParams["xtick.minor.width"] = 1.0
+plt.rcParams["ytick.minor.width"] = 1.0
+plt.rcParams["xtick.major.size"] = 10
+plt.rcParams["ytick.major.size"] = 10
+plt.rcParams["xtick.minor.size"] = 5
+plt.rcParams["ytick.minor.size"] = 5
+plt.rcParams["font.size"] = 15
 
 #----------------------------------------------------
 # メソッドごとの実行スイッチ
@@ -274,7 +128,7 @@ run_pp_flag: bool = True     # Proposed
 # パラメータの設定
 N: int = 10
 T: int = 20000
-sparsity: float = 100
+sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
@@ -300,14 +154,10 @@ beta_co: float = 0.02
 beta_sgd: float = 0.02
 
 # 初期値の設定
-if S_is_symmetric:
-    S_0: np.ndarray = generate_random_S(N, sparsity, max_weight)
-else:
-    S_0: np.ndarray = generate_random_S_with_off_diagonal(N, sparsity, max_weight)
-
+S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
-# その他のパラメータ
+# その他のパラメータ（Proposed手法関連）
 r: int = 4  # window size
 q: int = 10  # number of processors
 rho: float = 0.15  # 試行回数の設定
