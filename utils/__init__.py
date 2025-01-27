@@ -1,1 +1,2 @@
 from .utils import elimination_matrix_h, duplication_matrix_h, elimination_matrix_hh, duplication_matrix_hh, soft_thresholding, project_to_zero_diagonal_symmetric
+from .generator import generate_random_S, generate_piecewise_X_K, generate_brownian_piecewise_X_K
