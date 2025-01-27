@@ -304,7 +304,7 @@ plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
-notebook_filename: str = "sandbox_parallel.py"  # ★使用中のNotebook名を入力
+notebook_filename: str = "sandbox_parallel.py"
 
 filename: str = (
     f'result_N{N}_'
@@ -332,7 +332,7 @@ filename: str = (
 print(filename)
 today_str: str = datetime.datetime.now().strftime('%y%m%d')
 save_path: str = f'./result/{today_str}/images'
-os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作成
+os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
