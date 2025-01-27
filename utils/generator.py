@@ -95,7 +95,7 @@ def generate_brownian_piecewise_X_K(
     max_weight: float,
     std_e: float,
     K: int,
-    std_S: float = 0.1  # ← 追加: S をランダムに「揺らす」強度
+    std_S: float  # ← 追加: S をランダムに「揺らす」強度
 ):
     """
     K 回に分けて S を生成し、それぞれの区間で X を生成する関数.
@@ -109,7 +109,7 @@ def generate_brownian_piecewise_X_K(
     I = np.eye(N)
     
     # まず最初の S は従来どおりランダムに生成
-    S = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
+    S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     
     S_list.append(S)
     inv_I_S_list.append(inv(I - S))
