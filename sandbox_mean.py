@@ -16,174 +16,6 @@ from utils import *
 from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
-# %%
-def generate_random_S(N, sparsity, max_weight):
-    S = np.zeros((N, N))
-    
-    for i in range(N):
-        for j in range(i + 1, N):
-            if np.random.rand() < sparsity:
-                weight = np.random.uniform(-max_weight, max_weight)
-                # weight = np.random.uniform(0, max_weight)
-                S[i, j] = weight
-                S[j, i] = weight
-    
-    # Ensure spectral radius < 1
-    spectral_radius = max(abs(eigvals(S)))
-    if spectral_radius >= 1:
-        S = S / (spectral_radius + 0.1)
-
-    S = S / norm(S)
-    return S
-
-def generate_random_S_with_off_diagonal(N, sparsity, max_weight):
-    S = np.zeros((N, N))
-    
-    for i in range(N):
-        for j in range(N):
-            if i != j and np.random.rand() < sparsity:
-                weight = np.random.uniform(-max_weight, max_weight)
-                # weight = np.random.uniform(0, max_weight)
-                S[i, j] = weight
-    
-    # Ensure spectral radius < 1
-    spectral_radius = max(abs(eigvals(S)))
-    if spectral_radius >= 1:
-        S = S / (spectral_radius + 0.1)
-
-    S = S / norm(S)
-    return S
-
-def modify_S(S, edge_indices, factor=2.0):
-    S_modified = S.copy()
-    for (i, j) in edge_indices:
-        if i != j:
-            S_modified[i, j] *= factor
-            S_modified[j, i] *= factor
-    return S_modified
-
-def generate_stationary_X(N, T, S_is_symmetric, sparsity, max_weight, std_e):
-    if S_is_symmetric:
-        S = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
-    else:
-        S = generate_random_S_with_off_diagonal(N, sparsity=sparsity, max_weight=max_weight)
-    S_series = [S for _ in range(T)]
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    I = np.eye(N)
-    try:
-        inv_I_S = inv(I - S)
-    except np.linalg.LinAlgError:
-        raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    X = inv_I_S @ e_t_series
-
-    return S_series, X, e_t_series
-
-def generate_stationary_X_from_S(S, N, T, std_e):
-    S = S
-    S_series = [S for _ in range(T)]
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    I = np.eye(N)
-    try:
-        inv_I_S = inv(I - S)
-    except np.linalg.LinAlgError:
-        raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    X = inv_I_S @ e_t_series
-
-    return S_series, X
-
-def generate_piecewise_X(N, T, S_is_symmetric, sparsity, max_weight, std_e):
-    max_weight_0 = max_weight
-    max_weight_1 = max_weight
-    if S_is_symmetric:
-        S0 = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
-    else:
-        S0 = generate_random_S_with_off_diagonal(N, sparsity=sparsity, max_weight=max_weight)
-    # S1 = generate_random_S(N, sparsity=sparsity, max_weight=max_weight_1)
-    S1 = S0*2
-    S_series = [S0 for _ in range(T // 2)] + [S1 for _ in range(T - T // 2)]
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    I = np.eye(N)
-    try:
-        inv_I_S0 = inv(I - S0)
-        inv_I_S1 = inv(I - S1)
-    except np.linalg.LinAlgError:
-        raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    X0 = inv_I_S0 @ e_t_series[:, :T // 2]
-    X1 = inv_I_S1 @ e_t_series[:, T // 2:]
-    X = np.concatenate([X0, X1], axis=1)
-
-    return S_series, X
-
-def generate_piecewise_X_K(N, T, S_is_symmetric, sparsity, max_weight, std_e, K):
-    S_list = []
-    inv_I_S_list = []
-    I = np.eye(N)
-
-    for i in range(K):
-        if S_is_symmetric:
-            S = generate_random_S(N, sparsity=sparsity, max_weight=max_weight)
-        else:
-            S = generate_random_S_with_off_diagonal(N, sparsity=sparsity, max_weight=max_weight)
-        S_list.append(S)
-        try:
-            inv_I_S = inv(I - S)
-            inv_I_S_list.append(inv_I_S)
-        except np.linalg.LinAlgError:
-            raise ValueError("The matrix (I - S) is non-invertible. Please adjust S to ensure invertibility.")
-
-    # Divide T into K segments
-    segment_lengths = [T // K] * K
-    segment_lengths[i-1] += T % K
-
-    # Create S_series
-    S_series = []
-    for i, length in enumerate(segment_lengths):
-        S_series.extend([S_list[i]] * length)
-
-    # Generate error terms
-    e_t_series = np.random.normal(0, std_e, size=(N, T))
-
-    # Compute X
-    X_list = []
-    start = 0
-    for i, length in enumerate(segment_lengths):
-        end = start + length
-        X_i = inv_I_S_list[i] @ e_t_series[:, start:end]
-        X_list.append(X_i)
-        start = end
-
-    X = np.concatenate(X_list, axis=1)
-
-    return S_series, X
-
-
-def solve_offline_sem(X_up_to_t, lambda_reg):
-    N, t = X_up_to_t.shape
-    S = cp.Variable((N, N), symmetric=True)
-    
-    # objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro') + lambda_reg * cp.norm1(S)
-    objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro')
-    
-    constraints = [cp.diag(S) == 0]
-    
-    prob = cp.Problem(cp.Minimize(objective), constraints)
-    
-    prob.solve(solver=cp.SCS, verbose=False)
-    
-    if prob.status not in ["optimal", "optimal_inaccurate"]:
-        raise ValueError("CVXPY did not find an optimal solution.")
-    
-    S_opt = S.value
-    return S_opt
-
-
-# %%
 plt.rc('text',usetex=True)
 plt.rc('font',family="serif")
 plt.rcParams["font.family"] = "Times New Roman"      #全体のフォントを設定
@@ -201,7 +33,6 @@ plt.rcParams["xtick.minor.size"] = 5                #x軸補助目盛り線の�
 plt.rcParams["ytick.minor.size"] = 5                #y軸補助目盛り線の長さ
 plt.rcParams["font.size"] = 15                       #フォントの大きさ
 
-# %%
 # 試行回数の設定
 num_trials = 10
 
@@ -239,10 +70,7 @@ def run_trial(trial_seed):
     S_series, X = generate_piecewise_X_K(N, T, S_is_symmetric, sparsity, max_weight, std_e, K)
 
     # 初期値の設定
-    if S_is_symmetric:
-        S_0 = generate_random_S(N, sparsity, max_weight)
-    else:
-        S_0 = generate_random_S_with_off_diagonal(N, sparsity, max_weight)
+    S_0 = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     S_0 = S_0 / norm(S_0)
 
     # モデルのインスタンス化（並列処理を無効化したい場合は注意）
@@ -350,6 +178,3 @@ copy_ipynb_path = os.path.join(save_path, f"sandbox_mean_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
-
-
-

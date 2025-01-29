@@ -15,60 +15,6 @@ from utils import *
 from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
-def solve_offline_sem(X_up_to_t: np.ndarray, lambda_reg: float = 0.0) -> np.ndarray:
-    """
-    Solve the offline SEM problem (at time t) on data X_up_to_t.
-    Minimizes (1/2t)*||X - S X||_F^2 subject to diag(S) = 0.
-    Optionally include an L1 term if needed (lambda_reg>0).
-    """
-    N, t = X_up_to_t.shape
-    S = cp.Variable((N, N), symmetric=True)
-    
-    # For L1 regularization, uncomment:
-    # objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro') + lambda_reg * cp.norm(S, 1)
-    objective = (1/(2*t)) * cp.norm(X_up_to_t - S @ X_up_to_t, 'fro')
-    constraints = [cp.diag(S) == 0]
-    prob = cp.Problem(cp.Minimize(objective), constraints)
-    prob.solve(solver=cp.SCS, verbose=False)
-    
-    if prob.status not in ["optimal", "optimal_inaccurate"]:
-        raise ValueError("CVXPY did not find an optimal solution at time t=%d." % t)
-    
-    return S.value
-
-def calc_snr(S: np.ndarray) -> float:
-    N = S.shape[0]
-    I = np.eye(N)
-    inv_mat = np.linalg.inv(I - S)
-    val = np.trace(inv_mat @ inv_mat.T)
-    return val / N
-
-# Dummy scaling function for SNR (not essential for the NSE calculation)
-def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
-                           tol: float = 1e-6, max_iter: int = 100) -> np.ndarray:
-    eigvals_S = np.linalg.eigvals(S)
-    rho_S = max(abs(eigvals_S))
-    if rho_S == 0:
-        # If S=0, SNR=1 always
-        return S
-    alpha_high = 1.0 / rho_S * 0.999
-    alpha_low = 0.0
-    for _ in range(max_iter):
-        alpha_mid = 0.5 * (alpha_low + alpha_high)
-        try:
-            tmp_snr = calc_snr(alpha_mid * S)
-        except np.linalg.LinAlgError:
-            alpha_high = alpha_mid
-            continue
-        if tmp_snr > snr_target:
-            alpha_high = alpha_mid
-        else:
-            alpha_low = alpha_mid
-        if abs(tmp_snr - snr_target) < tol:
-            break
-    alpha_star = 0.5 * (alpha_low + alpha_high)
-    return alpha_star * S
-
 plt.rc('text',usetex=True)
 plt.rc('font',family="serif")
 plt.rcParams["font.family"] = "Times New Roman"
