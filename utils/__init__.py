@@ -1,2 +1,2 @@
-from .utils import elimination_matrix_h, duplication_matrix_h, elimination_matrix_hh, duplication_matrix_hh, soft_thresholding, project_to_zero_diagonal_symmetric
-from .generator import generate_random_S, generate_piecewise_X_K, generate_brownian_piecewise_X_K
+from .utils import elimination_matrix_h, duplication_matrix_h, elimination_matrix_hh, duplication_matrix_hh, soft_thresholding, project_to_zero_diagonal_symmetric, solve_offline_sem, calc_snr, scale_S_for_target_snr
+from .generator import generate_random_S, generate_piecewise_X_K, generate_brownian_piecewise_X_K, generate_linear_X

@@ -150,3 +150,79 @@ def generate_brownian_piecewise_X_K(
     X = np.concatenate(X_list, axis=1)
     
     return S_series, X
+
+def generate_linear_X(
+    N: int,
+    T: int,
+    S_is_symmetric: bool,
+    sparsity: float,
+    max_weight: float,
+    std_e: float
+) -> Tuple[List[np.ndarray], np.ndarray]:
+    """
+    - 最初にランダム行列 S_start と S_end を生成し，
+    - t=0 から t=T-1 まで線形に補間した S(t) を用いて，
+      X(t) = (I - S(t))^-1 * e(t)
+    でサンプルを生成するメモリレスSEMの関数．
+
+    返り値:
+      S_series: t=0 から t=T-1 までの S(t) を格納したリスト (長さ T)
+      X       : 観測データ (N x T)
+    """
+    I = np.eye(N)
+
+    # 1. 2つの行列をランダム生成
+    S_start = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+    S_end   = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+    
+    # 2. スペクトル半径をチェック → 1未満に抑える
+    def spectral_radius(A: np.ndarray) -> float:
+        return max(abs(eigvals(A)))
+    
+    rho_start = spectral_radius(S_start)
+    rho_end   = spectral_radius(S_end)
+    rho_max   = max(rho_start, rho_end)
+    
+    # もしスペクトル半径が1を超えているなら0.99に押さえ込む
+    if rho_max >= 1.0:
+        alpha = 0.99 / rho_max
+        S_start *= alpha
+        S_end   *= alpha
+    
+    # 念のため再度チェック (必ず < 1 になっているはず)
+    # ここでさらに厳密に <1 であるか確認したい場合は適宜 assert 等しても良い
+    # print("rho_start =", spectral_radius(S_start))
+    # print("rho_end   =", spectral_radius(S_end))
+
+    # 3. 時刻 t=0..T-1 で線形補間した S(t) をリストに格納
+    S_series = []
+    inv_I_S_list = []
+    for t in range(T):
+        if T == 1:
+            lam = 0.0
+        else:
+            lam = t / (T - 1)  # 0 から 1 まで
+        
+        # 線形補間
+        S_t = (1.0 - lam) * S_start + lam * S_end
+        
+        # ここでも「スペクトル半径 < 1」を保障したい場合は，
+        # S_start, S_end がともに <1 なら凸結合 S(t) も <1 になります
+        # （スペクトル半径はサブアディティブなので）
+        
+        S_series.append(S_t)
+        inv_I_S_list.append(np.linalg.inv(I - S_t))
+
+    # 4. 外生ショック e(t) の生成
+    e_t_series = np.random.normal(0, std_e, size=(N, T))
+    
+    # 5. X(t) = (I - S(t))^-1 e(t) をまとめて生成
+    X_list = []
+    for t in range(T):
+        x_t = inv_I_S_list[t] @ e_t_series[:, t]
+        X_list.append(x_t.reshape(N, 1))
+
+    # shape を (N, T) に整形
+    X = np.concatenate(X_list, axis=1)
+    
+    return S_series, X
