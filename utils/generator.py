@@ -30,8 +30,15 @@ def generate_random_S(
     S = S / norm(S)
     return S
 
-def generate_piecewise_X_K(N: int, T: int, S_is_symmetric: bool, sparsity: float,
-                           max_weight: float, std_e: float, K: int) -> Tuple[List[np.ndarray], np.ndarray]:
+def generate_piecewise_X_K(
+        N: int,
+        T: int,
+        S_is_symmetric: bool,
+        sparsity: float,
+        max_weight: float,
+        std_e: float,
+        K: int
+) -> Tuple[List[np.ndarray], np.ndarray]:
     S_list = []
     inv_I_S_list = []
     I = np.eye(N)
@@ -86,6 +93,56 @@ def update_S(
     S_new = np.clip(S_new, -max_weight, max_weight)
     
     return S_new
+
+def generate_piecewise_X_K_with_snr(
+    N: int,
+    T: int,
+    S_is_symmetric: bool,
+    sparsity: float,
+    max_weight: float,
+    std_e: float,
+    K: int,
+    snr_target: float,
+    tol: float = 1e-6,
+    max_iter: int = 100
+) -> Tuple[List[np.ndarray], np.ndarray]:
+    S_list = []
+    inv_I_S_list = []
+    I = np.eye(N)
+    
+    # 1) Generate K random S and scale each to snr_target
+    for i in range(K):
+        # Generate a base random S
+        S_raw = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+        # Scale it to achieve the target SNR
+        S_scaled = scale_S_for_target_snr(S_raw, snr_target, tol=tol, max_iter=max_iter)
+        S_list.append(S_scaled)
+        inv_I_S_list.append(np.linalg.inv(I - S_scaled))
+
+    # 2) Divide T into K segments
+    segment_lengths = [T // K] * K
+    segment_lengths[-1] += T % K  # handle any remainder in the last segment
+
+    # 3) Create S_series (length T)
+    S_series = []
+    for i, length in enumerate(segment_lengths):
+        S_series.extend([S_list[i]] * length)
+
+    # 4) Generate exogenous shock e(t)
+    e_t_series = np.random.normal(0, std_e, size=(N, T))
+
+    # 5) Compute X piecewise
+    X_list = []
+    start = 0
+    for i, length in enumerate(segment_lengths):
+        end = start + length
+        X_i = inv_I_S_list[i] @ e_t_series[:, start:end]
+        X_list.append(X_i)
+        start = end
+    
+    X = np.concatenate(X_list, axis=1)
+    
+    return S_series, X
 
 def generate_brownian_piecewise_X_K(
     N: int,
