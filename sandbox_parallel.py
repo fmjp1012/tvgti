@@ -218,7 +218,7 @@ plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
-notebook_filename: str = "sandbox_parallel.py"
+notebook_filename: str = os.path.basename(__file__)
 
 filename: str = (
     f'result_N{N}_'
@@ -250,7 +250,7 @@ os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-copy_ipynb_path: str = os.path.join(save_path, f"sandbox_parallel_backup_{timestamp}.py")
+copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

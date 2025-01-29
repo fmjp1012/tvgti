@@ -1,21 +1,22 @@
+import datetime
+import os
 import shutil
 import sys
-import os
-import datetime
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
-import numpy as np
-from scipy.linalg import inv, eigvals, norm
-import matplotlib.pyplot as plt
 import cvxpy as cp
-from tqdm import tqdm
+import matplotlib.pyplot as plt
+import numpy as np
 from joblib import Parallel, delayed
 from multiprocessing import Manager
+from scipy.linalg import eigvals, inv, norm
+from tqdm import tqdm
 
 from utils import *
 from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
+# Matplotlib configuration
 plt.rc('text', usetex=True)
 plt.rc('font', family="serif")
 plt.rcParams["font.family"] = "Times New Roman"
@@ -42,15 +43,15 @@ run_pp_flag: bool = True     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 10
-T: int = 20000
+N: int = 30
+T: int = 10000
 sparsity: float = 0.0
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
 S_is_symmetric: bool = True
 
-seed: int = 3
+seed: int = 30
 np.random.seed(seed)
 
 #----------------------------------------------------
@@ -73,19 +74,19 @@ print("SNR at t=0 (S_series[0]):", snr_before)
 P: int = 1
 C: int = 1
 gamma: float = 0.999
-alpha: float = 0.015
-beta_pc: float = 0.015
-beta_co: float = 0.02
-beta_sgd: float = 0.02
+alpha: float = 0.01
+beta_pc: float = 0.01
+beta_co: float = 0.01
+beta_sgd: float = 0.01
 
 # 初期値の設定 (推定開始時の行列)
 S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)  # とりあえず正則化
 
 # その他のパラメータ
-r: int = 4   # window size
+r: int = 30   # window size
 q: int = 10  # number of processors
-rho: float = 0.15
+rho: float = 2.4
 mu_lambda: float = 1
 
 # モデルのインスタンス化
@@ -188,7 +189,7 @@ plt.grid(True, "both")
 plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-notebook_filename: str = "linear.py"
+notebook_filename: str = os.path.basename(__file__)
 
 filename: str = (
     f'result_N{N}_'
@@ -218,6 +219,6 @@ os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-copy_ipynb_path: str = os.path.join(save_path, f"linear_backup_{timestamp}.py")
+copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

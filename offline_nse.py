@@ -209,7 +209,7 @@ plt.grid(True, which="both")
 plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-notebook_filename: str = "offline_nse.py"
+notebook_filename: str = os.path.basename(__file__)
 filename: str = (
     f'result_N{N}_notebook_filename{notebook_filename}_T{T}_maxweight{max_weight}_variancee{variance_e}_K{K}_'
     f'Sissymmetric{S_is_symmetric}_seed{seed}_P{P}_C{C}_gammma{gamma}_'
@@ -223,6 +223,6 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 # Back up this script
-copy_ipynb_path: str = os.path.join(save_path, f"offline_nse_backup_{timestamp}.py")
+copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

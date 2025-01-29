@@ -1,4 +1,3 @@
-# %%
 import shutil
 import os
 import datetime
@@ -140,8 +139,7 @@ plt.grid(True, 'both')
 plt.legend()
 
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-
-notebook_filename = "sandbox_mean.py"  # ★使用中のNotebook名を入力
+notebook_filename = os.path.basename(__file__)
 
 filename = (
     f'result_N{N}_'
@@ -174,7 +172,7 @@ os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
-copy_ipynb_path = os.path.join(save_path, f"sandbox_mean_backup_{timestamp}.py")
+copy_ipynb_path = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
 
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

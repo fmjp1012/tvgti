@@ -221,7 +221,7 @@ plt.show()
 #--------------------------
 # スクリプトのバックアップコピー
 #--------------------------
-notebook_filename: str = "rho_q.py"  # 元ファイル名（必要に応じて変更）
-copy_ipynb_path: str = os.path.join(save_path, f"rho_q_backup_{timestamp}.py")
+notebook_filename: str = os.path.basename(__file__)
+copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
