@@ -76,8 +76,8 @@ C: int = 1
 gamma: float = 0.999
 alpha: float = 0.015
 beta_pc: float = 0.015
-beta_co: float = 0.015
-beta_sgd: float = 0.015
+beta_co: float = 0.02
+beta_sgd: float = 0.02
 
 # 初期値の設定 (推定開始時の行列)
 S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)

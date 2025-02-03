@@ -246,56 +246,137 @@ def calc_snr(S: np.ndarray) -> float:
     val = np.trace(inv_mat @ inv_mat.T)
     return val / N
 
-def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
-                           tol: float = 1e-6, max_iter: int = 100) -> np.ndarray:
+# def scale_S_for_target_snr(S: np.ndarray, snr_target: float,
+#                            tol: float = 1e-6, max_iter: int = 10000) -> np.ndarray:
+#     """
+#     与えられた S (NxN) をスケーリングする係数 alpha を見つけて、
+#     (I - alpha*S) が可逆 & スペクトル半径 < 1 となる範囲で
+#     目標とする snr_target に近い SNR を実現するように返す。
+#     """
+#     # 前提: S は正方行列
+#     N = S.shape[0]
+    
+#     # スペクトル半径を計算
+#     eigvals = np.linalg.eigvals(S)
+#     rho_S = max(abs(eigvals))
+    
+#     # もし rho_S == 0 なら、S=0 の場合などで SNR=1 が常に得られる
+#     # ここでは簡単に場合分け
+#     if rho_S == 0:
+#         current_snr = calc_snr(S * 0.0)  # = 1/N * tr(I * I^T) = 1
+#         if abs(current_snr - snr_target) < tol:
+#             return S  # そのまま
+#         else:
+#             # どうにもならないので、とりあえず返しておく
+#             return S
+    
+#     # alpha の上限: ここでは 1/(rho_S + ちょっとのマージン) とする
+#     alpha_high = 1.0 / rho_S * 0.999  # 安全のため少しだけ小さめにする
+#     alpha_low = 0.0
+    
+#     # 2分探索
+#     for _ in range(max_iter):
+#         alpha_mid = 0.5 * (alpha_low + alpha_high)
+        
+#         # (I - alpha*S) が可逆かチェック -> np.linalg.inv がエラーを吐かないか確かめる
+#         try:
+#             tmp_snr = calc_snr(alpha_mid * S)
+#         except np.linalg.LinAlgError:
+#             # 可逆でなかったら、もう少し alpha を小さくする
+#             alpha_high = alpha_mid
+#             continue
+        
+#         if tmp_snr > snr_target:
+#             # 目標より SNR が高いので、alpha を小さく
+#             alpha_high = alpha_mid
+#         else:
+#             # 目標より SNR が低いので、alpha を大きく
+#             alpha_low = alpha_mid
+        
+#         # 収束チェック
+#         if abs(tmp_snr - snr_target) < tol:
+#             break
+    
+#     alpha_star = 0.5 * (alpha_low + alpha_high)
+#     return alpha_star * S
+
+def scale_S_for_target_snr(
+    S: np.ndarray, snr_target: float, 
+    tol: float = 1e-6, max_iter: int = 10000
+) -> np.ndarray:
     """
     与えられた S (NxN) をスケーリングする係数 alpha を見つけて、
     (I - alpha*S) が可逆 & スペクトル半径 < 1 となる範囲で
     目標とする snr_target に近い SNR を実現するように返す。
+
+    ただし、SNR は以下の式で定義:
+      SNR = (1/N) * tr( (I - alpha*S)^-1 (I - alpha*S)^-T ).
     """
-    # 前提: S は正方行列
     N = S.shape[0]
-    
-    # スペクトル半径を計算
+    # スペクトル半径
     eigvals = np.linalg.eigvals(S)
     rho_S = max(abs(eigvals))
-    
-    # もし rho_S == 0 なら、S=0 の場合などで SNR=1 が常に得られる
-    # ここでは簡単に場合分け
+
+    # rho(S) = 0 の場合 → S=0 行列
+    #  このとき (I - 0*S) = I なので SNR=1
+    #  いくらスケーリングしても 0 のままなので、SNR は常に 1
     if rho_S == 0:
-        current_snr = calc_snr(S * 0.0)  # = 1/N * tr(I * I^T) = 1
+        current_snr = calc_snr(S)  # → 常に 1
+        # もし目標値が 1 とほぼ同じならそのまま、そうでなければどうしようもない
         if abs(current_snr - snr_target) < tol:
-            return S  # そのまま
-        else:
-            # どうにもならないので、とりあえず返しておく
             return S
-    
-    # alpha の上限: ここでは 1/(rho_S + ちょっとのマージン) とする
-    alpha_high = 1.0 / rho_S * 0.999  # 安全のため少しだけ小さめにする
+        else:
+            print("Warning: S=0行列のためSNR=1固定。目標SNRを満たせないのでSをそのまま返します。")
+            return S
+
+    # まず alpha=0 (下限) で SNR を計算 → これが最小 SNR (=1)
     alpha_low = 0.0
-    
-    # 2分探索
+    try:
+        snr_low = calc_snr(alpha_low * S)  # =1
+    except np.linalg.LinAlgError:
+        # ありえないが一応例外処理
+        snr_low = float('inf')  # 計算不能になったら大きな値扱いに
+
+    # alpha_high (上限付近) の初期値
+    alpha_high = 0.999 / rho_S  # スペクトル半径 * alpha < 1 になるように 0.999 を掛ける
+    try:
+        snr_high = calc_snr(alpha_high * S)
+    except np.linalg.LinAlgError:
+        # 万一可逆でなければもう少し小さくして再トライ
+        alpha_high *= 0.99
+        snr_high = calc_snr(alpha_high * S)
+
+    # snr_low < snr_high のはず (単調増加)
+    # 目標 SNR がレンジ外にある場合はクランプして返す
+    if snr_target <= snr_low:
+        # 目標が 1 未満なら実現不可能 → alpha=0 で返す
+        print("Warning: 目標SNRが1未満のため実現不可能。alpha=0 に設定します。")
+        return alpha_low * S
+    if snr_target >= snr_high:
+        # 目標が取りうる最大SNRより大きい → 上限alphaで返す
+        print("Warning: 目標SNRが上限を超えています。alpha=alpha_high に設定します。")
+        return alpha_high * S
+
+    # 2分探索で alpha を決める
     for _ in range(max_iter):
         alpha_mid = 0.5 * (alpha_low + alpha_high)
-        
-        # (I - alpha*S) が可逆かチェック -> np.linalg.inv がエラーを吐かないか確かめる
         try:
             tmp_snr = calc_snr(alpha_mid * S)
         except np.linalg.LinAlgError:
-            # 可逆でなかったら、もう少し alpha を小さくする
+            # 可逆でなければ alpha を下げる
             alpha_high = alpha_mid
             continue
-        
+
+        if abs(tmp_snr - snr_target) < tol:
+            # 収束
+            break
+
         if tmp_snr > snr_target:
-            # 目標より SNR が高いので、alpha を小さく
+            # SNR が大きすぎる → alpha を下げる
             alpha_high = alpha_mid
         else:
-            # 目標より SNR が低いので、alpha を大きく
+            # SNR が小さすぎる → alpha を上げる
             alpha_low = alpha_mid
-        
-        # 収束チェック
-        if abs(tmp_snr - snr_target) < tol:
-            break
-    
+
     alpha_star = 0.5 * (alpha_low + alpha_high)
     return alpha_star * S
