@@ -5,7 +5,7 @@ def compute_snr(c, S_rand, d):
     """
     入力:
       c      : スケーリング定数
-      S_rand : 対角成分が0のランダムな d×d 行列
+      S_rand : 対称かつ対角成分が0のランダムな d×d 行列
       d      : 次元
     出力:
       S = c * S_rand を用いたときの SNR
@@ -14,20 +14,24 @@ def compute_snr(c, S_rand, d):
     S = c * S_rand
     # I - S の計算
     I_minus_S = np.eye(d) - S
-    # 逆行列を計算
+    # 逆行列の計算
     inv_I_minus_S = np.linalg.inv(I_minus_S)
     # SNR = (1/d) * trace[(I-S)^{-1}(I-S)^{-T}]
     snr = np.trace(inv_I_minus_S @ inv_I_minus_S.T) / d
     return snr
 
 # --- 設定 ---
-gamma_target = 2.5   # 目標 SNR (例)
+gamma_target = 100   # 目標 SNR (例)
 d = 5                # 次元
 
-# --- 1. ランダム行列 S_rand の生成 ---
-# 例として、非対角成分を一様乱数（区間 [-1,1]）から生成
-S_rand = np.random.uniform(low=-1.0, high=1.0, size=(d, d))
-np.fill_diagonal(S_rand, 0)  # 対角成分は 0
+# --- 1. 対称なランダム行列 S_rand の生成 ---
+# まず、d×d の一様乱数行列 A を生成
+A = np.random.uniform(low=-1.0, high=1.0, size=(d, d))
+# 対称行列にするため、A とその転置の平均を取る
+S_rand = (A + A.T) / 2
+# 対角成分は必ず0にする
+np.fill_diagonal(S_rand, 0)
+print("生成した対称な S_rand 行列:\n", S_rand)
 
 # --- 2. 安定性のための c の上限の計算 ---
 # S_rand の固有値（スペクトル半径）を計算
@@ -51,6 +55,6 @@ c_sol = bisect(lambda c: compute_snr(c, S_rand, d) - gamma_target, 0, c_max)
 print("求めたスケーリング定数 c =", c_sol)
 print("この c のときの SNR =", compute_snr(c_sol, S_rand, d))
 
-# --- 4. 最終的な S 行列の生成 ---
+# --- 4. 最終的な対称な S 行列の生成 ---
 S_final = c_sol * S_rand
-print("生成した最終的な S 行列:\n", S_final)
+print("生成した最終的な対称な S 行列:\n", S_final)
