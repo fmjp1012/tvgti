@@ -102,8 +102,8 @@ def run_experiment_for_snr(snr_target: float, seed: int = 10) -> Tuple[float, fl
 # ----------------------------------------------------
 if __name__ == "__main__":
     # SNR の候補 (1 〜 20)
-    # snr_values = [1, 10, 20]
-    snr_values = range(1, 21)
+    snr_values = [1, 10]
+    # snr_values = range(1, 21)
     seed = 10  # 再現性のための固定シード(必要に応じて)
 
     # 並列実行 (n_jobs=-1 で CPU 全コア使用)

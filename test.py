@@ -3,12 +3,20 @@ from scipy.optimize import bisect
 
 def compute_snr(c, S_rand, d):
     """
-    S = c * S_rand を用いたときの SNR を計算する関数
-    SNR = (1/d) * trace[(I-S)^{-1}(I-S)^{-T}]
+    入力:
+      c      : スケーリング定数
+      S_rand : 対称かつ対角成分が0のランダムな d×d 行列
+      d      : 次元
+    出力:
+      S = c * S_rand を用いたときの SNR
     """
+    # スケーリングされた S の生成
     S = c * S_rand
+    # I - S の計算
     I_minus_S = np.eye(d) - S
+    # 逆行列の計算
     inv_I_minus_S = np.linalg.inv(I_minus_S)
+    # SNR = (1/d) * trace[(I-S)^{-1}(I-S)^{-T}]
     snr = np.trace(inv_I_minus_S @ inv_I_minus_S.T) / d
     return snr
 
@@ -17,34 +25,41 @@ gamma_target = 100   # 目標 SNR (例)
 d = 5                # 次元
 
 # --- 1. 対称なランダム行列 S_rand の生成 ---
-# d×d の一様乱数行列 A を生成
+# まず、d×d の一様乱数行列 A を生成
 A = np.random.uniform(low=-1.0, high=1.0, size=(d, d))
 # 対称行列にするため、A とその転置の平均を取る
 S_rand = (A + A.T) / 2
-# 対角成分は必ず 0 にする
+# 対角成分は必ず0にする
 np.fill_diagonal(S_rand, 0)
 print("生成した対称な S_rand 行列:\n", S_rand)
 
-# --- 2. f(c) = compute_snr(c, S_rand, d) - gamma_target の定義 ---
-def f(c):
-    return compute_snr(c, S_rand, d) - gamma_target
+# --- 2. 安定性のための c の上限の計算 ---
+# S_rand の固有値（スペクトル半径）を計算
+eigvals = np.linalg.eigvals(S_rand)
+spectral_radius = np.max(np.abs(eigvals))
+print("S_rand のスペクトル半径 =", spectral_radius)
 
-# --- 3. c の解を含む区間の自動探索（安定性条件は無視） ---
-c_low = 0.0
-c_high = 0.1  # 初期の上限値
+# 安定性条件: |c| < 1 / spectral_radius
+# ここでは gamma_target > 1 を仮定して c > 0 として探索します
+# c_max = 1.0 / spectral_radius - 1e-6  # 1e-6 で余裕を持たせる
+c_max = 1.0 / spectral_radius - 1e-6  # 1e-6 で余裕を持たせる
 
-# f(c_low)= compute_snr(0, ...)-gamma_target ですが、通常は 1 - gamma_target と小さい値になる想定です
-while f(c_high) < 0:
-    c_high *= 2
-    print("拡大中: c_high =", c_high, " f(c_high) =", f(c_high))
+# --- 3. 二分法による c の探索 ---
+# f(c) = compute_snr(c, S_rand, d) - gamma_target
+# c = 0 のとき SNR=1 なので f(0)=1-gamma_target (<0 となるはず)
+f0 = compute_snr(0, S_rand, d) - gamma_target
+f_max = compute_snr(c_max, S_rand, d) - gamma_target
+print("f(0) =", f0, " f(c_max) =", f_max)
 
-print("探索区間: [{}, {}]".format(c_low, c_high))
-
-# --- 4. 二分法による c の探索 ---
-c_sol = bisect(f, c_low, c_high)
+# c の解を [0, c_max] 内で探索
+c_sol = bisect(lambda c: compute_snr(c, S_rand, d) - gamma_target, 0, c_max)
 print("求めたスケーリング定数 c =", c_sol)
 print("この c のときの SNR =", compute_snr(c_sol, S_rand, d))
 
-# --- 5. 最終的な対称な S 行列の生成 ---
+# --- 4. 最終的な対称な S 行列の生成 ---
 S_final = c_sol * S_rand
 print("生成した最終的な対称な S 行列:\n", S_final)
+
+eigvals = np.linalg.eigvals(S_final)
+spectral_radius = np.max(np.abs(eigvals))
+print("S_final のスペクトル半径 =", spectral_radius)

@@ -115,7 +115,7 @@ def generate_piecewise_X_K_with_snr(
         # Generate a base random S
         S_raw = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
         # Scale it to achieve the target SNR
-        S_scaled = scale_S_for_target_snr(S_raw, snr_target, tol=tol, max_iter=max_iter)
+        S_scaled = scale_S_for_target_snr(S_raw, snr_target)
         S_list.append(S_scaled)
         inv_I_S_list.append(np.linalg.inv(I - S_scaled))
 
