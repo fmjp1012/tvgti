@@ -41,7 +41,7 @@ class TimeVaryingSEM:
         denominator = 0.0
 
         for i in range(self.q):
-            x_per_processor = X_partial[:, i: self.r]
+            x_per_processor = X_partial[:, i: i + self.r]
 
             projection_sp = self.subgrad_projection(x_per_processor)
             sum_weighted_projection_sp += self.w * projection_sp
