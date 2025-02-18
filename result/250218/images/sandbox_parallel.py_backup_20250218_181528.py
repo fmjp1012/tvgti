@@ -63,8 +63,8 @@ print("Before scaling, SNR =", snr_before)
 P: int = 1
 C: int = 1
 gamma: float = 0.999
-alpha: float = 0.02
-beta_pc: float = 0.02
+alpha: float = 0.1
+beta_pc: float = 0.1
 beta_co: float = 0.02
 beta_sgd: float = 0.02
 
