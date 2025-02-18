@@ -15,22 +15,22 @@ from utils import *
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 from models.tvgti_pp_nonsparse_undirected_nonoverlap import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED_NONOVERLAP
 
-plt.rc('text',usetex=True)
-plt.rc('font',family="serif")
-plt.rcParams["font.family"] = "Times New Roman"      #全体のフォントを設定
-plt.rcParams["xtick.direction"] = "in"               #x軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
-plt.rcParams["ytick.direction"] = "in"               #y軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
-plt.rcParams["xtick.minor.visible"] = True          #x軸補助目盛りの追加
-plt.rcParams["ytick.minor.visible"] = True          #y軸補助目盛りの追加
-plt.rcParams["xtick.major.width"] = 1.5              #x軸主目盛り線の線幅
-plt.rcParams["ytick.major.width"] = 1.5              #y軸主目盛り線の線幅
-plt.rcParams["xtick.minor.width"] = 1.0              #x軸補助目盛り線の線幅
-plt.rcParams["ytick.minor.width"] = 1.0              #y軸補助目盛り線の線幅
-plt.rcParams["xtick.major.size"] = 10                #x軸主目盛り線の長さ
-plt.rcParams["ytick.major.size"] = 10                #y軸主目盛り線の長さ
-plt.rcParams["xtick.minor.size"] = 5                #x軸補助目盛り線の長さ
-plt.rcParams["ytick.minor.size"] = 5                #y軸補助目盛り線の長さ
-plt.rcParams["font.size"] = 15                       #フォントの大きさ
+plt.rc('text', usetex=True)
+plt.rc('font', family="serif")
+plt.rcParams["font.family"] = "Times New Roman"      # 全体のフォントを設定
+plt.rcParams["xtick.direction"] = "in"               # x軸の目盛線が内向き
+plt.rcParams["ytick.direction"] = "in"               # y軸の目盛線が内向き
+plt.rcParams["xtick.minor.visible"] = True          # x軸補助目盛りを表示
+plt.rcParams["ytick.minor.visible"] = True          # y軸補助目盛りを表示
+plt.rcParams["xtick.major.width"] = 1.5             # x軸主目盛り線の線幅
+plt.rcParams["ytick.major.width"] = 1.5             # y軸主目盛り線の線幅
+plt.rcParams["xtick.minor.width"] = 1.0             # x軸補助目盛り線の線幅
+plt.rcParams["ytick.minor.width"] = 1.0             # y軸補助目盛り線の線幅
+plt.rcParams["xtick.major.size"] = 10               # x軸主目盛り線の長さ
+plt.rcParams["ytick.major.size"] = 10               # y軸主目盛り線の長さ
+plt.rcParams["xtick.minor.size"] = 5                # x軸補助目盛り線の長さ
+plt.rcParams["ytick.minor.size"] = 5                # y軸補助目盛り線の長さ
+plt.rcParams["font.size"] = 15                      # フォントの大きさ
 
 #----------------------------------------------------
 # メソッドごとの実行スイッチ
@@ -59,15 +59,27 @@ print("Before scaling, SNR =", snr_before)
 S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
-# その他のパラメータ
-r: int = 300  # window size
-q: int = 100  # number of processors
-rho: float = 10  # 試行回数の設定
-mu_lambda: float = 1
+#----------------------------------------------------
+# 2つの手法用にパラメータを別々に定義
+# Proposed (pp) 手法用パラメータ
+r_pp: int = 300       # window size
+q_pp: int = 100       # number of processors
+rho_pp: float = 10    # 試行回数の設定
+mu_lambda_pp: float = 1
+
+# Proposed_nonoverlap 手法用パラメータ
+r_pp_nonoverlap: int = 300       # window size
+q_pp_nonoverlap: int = 100       # number of processors
+rho_pp_nonoverlap: float = 10    # 試行回数の設定
+mu_lambda_pp_nonoverlap: float = 1
 
 # モデルのインスタンス化
-tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, mu_lambda, name="pp")
-tv_sem_pp_nonoverlap = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED_NONOVERLAP(N, S_0, r, q, rho, mu_lambda, name="pp_nonoverlap")
+tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(
+    N, S_0, r_pp, q_pp, rho_pp, mu_lambda_pp, name="pp"
+)
+tv_sem_pp_nonoverlap = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED_NONOVERLAP(
+    N, S_0, r_pp_nonoverlap, q_pp_nonoverlap, rho_pp_nonoverlap, mu_lambda_pp_nonoverlap, name="pp_nonoverlap"
+)
 
 # 実行関数の定義
 def run_tv_sem_pp() -> List[np.ndarray]:
@@ -78,10 +90,8 @@ def run_tv_sem_pp_nonoverlap() -> List[np.ndarray]:
     estimates_pp_nonoverlap = tv_sem_pp_nonoverlap.run(X)
     return estimates_pp_nonoverlap
 
-
 #----------------------------------------------------
-# ここで実行対象の関数だけリストを作る
-# (関数と手法名をまとめて管理するとあとで集計しやすい)
+# 実行対象の関数をリストに追加
 job_list = []
 job_list.append(delayed(run_tv_sem_pp)())
 job_list.append(delayed(run_tv_sem_pp_nonoverlap)())
@@ -89,12 +99,11 @@ job_list.append(delayed(run_tv_sem_pp_nonoverlap)())
 results = Parallel(n_jobs=2)(job_list)
 #----------------------------------------------------
 
-# それぞれの結果を受け取る格納リスト
-# （実行しないメソッドは空のままにする）
+# 結果格納用リストの初期化
 estimates_pp: List[np.ndarray] = []
 estimates_pp_nonoverlap: List[np.ndarray] = []
 
-# 実行した順番に応じて results から取り出す
+# 実行順に応じて results から取り出す
 idx_result: int = 0
 
 estimates_pp = results[idx_result]
@@ -102,8 +111,7 @@ idx_result += 1
 estimates_pp_nonoverlap = results[idx_result]
 idx_result += 1
 
-# ここから結果の解析・可視化
-# （実行したメソッドだけ処理をする）
+# 解析・可視化のための変数定義
 S_opts: List[np.ndarray] = []
 NSE_pp: List[float] = []
 NSE_pp_nonoverlap: List[float] = []
@@ -149,10 +157,14 @@ filename: str = (
     f'K{K}_'
     f'Sissymmetric{S_is_symmetric}_'
     f'seed{seed}_'
-    f'r{r}_'
-    f'q{q}_'
-    f'rho{rho}_'
-    f'mu_lambda{mu_lambda}_'
+    f'r_pp{r_pp}_'
+    f'q_pp{q_pp}_'
+    f'rho_pp{rho_pp}_'
+    f'mu_lambda_pp{mu_lambda_pp}_'
+    f'r_pp_nonoverlap{r_pp_nonoverlap}_'
+    f'q_pp_nonoverlap{q_pp_nonoverlap}_'
+    f'rho_pp_nonoverlap{rho_pp_nonoverlap}_'
+    f'mu_lambda_pp_nonoverlap{mu_lambda_pp_nonoverlap}_'
     f'timestamp{timestamp}.png'
 )
 
