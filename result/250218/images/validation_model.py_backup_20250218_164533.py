@@ -43,7 +43,7 @@ sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
-K: int = 1
+K: int = 4
 S_is_symmetric: bool = True
 
 seed: int = 3
