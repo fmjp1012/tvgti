@@ -35,7 +35,7 @@ plt.rcParams["font.size"] = 15                      # フォントの大きさ
 #----------------------------------------------------
 # メソッドごとの実行スイッチ（True: 実行, False: スキップ）
 #----------------------------------------------------
-run_proposed_method = True
+run_proposed_method = False
 run_proposed_nonoverlap_method = True
 
 # パラメータの設定
@@ -65,13 +65,13 @@ S_0 = S_0 / norm(S_0)
 # 2つの手法用にパラメータを別々に定義
 # Proposed (pp) 手法用パラメータ
 r_pp: int = 300       # window size
-q_pp: int = 5       # number of processors
+q_pp: int = 15       # number of processors
 rho_pp: float = 10    # 試行回数の設定
 mu_lambda_pp: float = 1
 
 # Proposed_nonoverlap 手法用パラメータ
 r_pp_nonoverlap: int = 300       # window size
-q_pp_nonoverlap: int = 5       # number of processors
+q_pp_nonoverlap: int = 100       # number of processors
 rho_pp_nonoverlap: float = 10    # 試行回数の設定
 mu_lambda_pp_nonoverlap: float = 1
 

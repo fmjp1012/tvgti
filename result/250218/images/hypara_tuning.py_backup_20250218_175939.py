@@ -51,10 +51,6 @@ std_e: float = np.sqrt(variance_e)
 K: int = 1
 S_is_symmetric: bool = True
 
-r_fixed = 30
-q_fixed = 20
-mu_lambda_fixed = 1
-
 seed: int = 3
 np.random.seed(seed)
 
@@ -87,14 +83,14 @@ def objective(trial: optuna.trial.Trial) -> float:
     """
     # 1) ハイパーパラメータのサンプリング
     #    適当に検索範囲を設定していますので、必要に応じて変更してください
-    r_suggested = r_fixed
-    q_suggested = q_fixed
+    r_suggested = 30
+    q_suggested = 20
 
     # r_suggested = trial.suggest_int("r", 5, 5000, step=5)     # 5,10,15,20, ..., 50
     # q_suggested = trial.suggest_int("q", 5, 5000, step=5)     # 5,10,15,20, ..., 50
     # mu_lambda_suggested = trial.suggest_float("mu_lambda", 0.001, 1.999, log=False)
-    rho_suggested = trial.suggest_float("rho", 1, 3, log=True)
-    mu_lambda_suggested = mu_lambda_fixed
+    rho_suggested = trial.suggest_float("rho", 0.001, 10, log=True)
+    mu_lambda_suggested = 1
 
     # 2) モデルを作成して実行
     estimates_pp = run_tv_sem_pp(
@@ -108,21 +104,14 @@ def objective(trial: optuna.trial.Trial) -> float:
     #    NSE_t = ||S_hat(t) - S_series(t)||^2 / ||S_0 - S_series(t)||^2
     #    → 全時刻 t の NSE を平均化
     #    必要に応じて別の指標に変更可
-    # nse_list = []
-    # for i, estimate in enumerate(estimates_pp):
-    #     numerator = norm(estimate - S_series[i])**2
-    #     denominator = norm(S_0 - S_series[i])**2
-    #     nse_list.append(numerator / denominator)
-    # avg_nse = np.mean(nse_list)
+    nse_list = []
+    for i, estimate in enumerate(estimates_pp):
+        numerator = norm(estimate - S_series[i])**2
+        denominator = norm(S_0 - S_series[i])**2
+        nse_list.append(numerator / denominator)
+    avg_nse = np.mean(nse_list)
 
-    # return avg_nse
-
-    # 3) 評価指標を計算 (最終時刻のNSE)
-    final_estimate = estimates_pp[-1]
-    final_true = S_series[-1]
-    final_nse = (norm(final_estimate - final_true) ** 2) / (norm(S_0 - final_true) ** 2)
-    
-    return final_nse
+    return avg_nse
 
 # Optuna で探索
 study = optuna.create_study(direction="minimize")
@@ -134,14 +123,14 @@ print("  Params:", best_trial.params)
 print("  Value (avg NSE):", best_trial.value)
 
 # ここで得られたベストパラメータを使って、再度モデルを走らせる
-best_r = r_fixed
-best_q = q_fixed
+best_r = 300
+best_q = 5
 
 # best_r = best_trial.params["r"]
 # best_q = best_trial.params["q"]
 # best_mu_lambda = best_trial.params["mu_lambda"]
 best_rho = best_trial.params["rho"]
-best_mu_lambda = mu_lambda_fixed
+best_mu_lambda = 1
 
 print(f"Best Hyperparams => r={best_r}, q={best_q}, rho={best_rho}, mu_lambda={best_mu_lambda}")
 

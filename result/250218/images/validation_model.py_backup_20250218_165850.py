@@ -65,13 +65,13 @@ S_0 = S_0 / norm(S_0)
 # 2つの手法用にパラメータを別々に定義
 # Proposed (pp) 手法用パラメータ
 r_pp: int = 300       # window size
-q_pp: int = 5       # number of processors
+q_pp: int = 100       # number of processors
 rho_pp: float = 10    # 試行回数の設定
 mu_lambda_pp: float = 1
 
 # Proposed_nonoverlap 手法用パラメータ
 r_pp_nonoverlap: int = 300       # window size
-q_pp_nonoverlap: int = 5       # number of processors
+q_pp_nonoverlap: int = 100       # number of processors
 rho_pp_nonoverlap: float = 10    # 試行回数の設定
 mu_lambda_pp_nonoverlap: float = 1
 
@@ -158,7 +158,7 @@ notebook_filename: str = os.path.basename(__file__)
 
 filename: str = (
     f'result_N{N}_'
-    f'{notebook_filename}_'
+    f'notebook_filename{notebook_filename}_'
     f'T{T}_'
     f'maxweight{max_weight}_'
     f'variancee{variance_e}_'

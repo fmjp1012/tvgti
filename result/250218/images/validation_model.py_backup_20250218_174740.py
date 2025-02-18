@@ -71,7 +71,7 @@ mu_lambda_pp: float = 1
 
 # Proposed_nonoverlap 手法用パラメータ
 r_pp_nonoverlap: int = 300       # window size
-q_pp_nonoverlap: int = 5       # number of processors
+q_pp_nonoverlap: int = 100       # number of processors
 rho_pp_nonoverlap: float = 10    # 試行回数の設定
 mu_lambda_pp_nonoverlap: float = 1
 
