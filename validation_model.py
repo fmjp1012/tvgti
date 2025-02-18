@@ -33,8 +33,10 @@ plt.rcParams["ytick.minor.size"] = 5                # y軸補助目盛り線の�
 plt.rcParams["font.size"] = 15                      # フォントの大きさ
 
 #----------------------------------------------------
-# メソッドごとの実行スイッチ
+# メソッドごとの実行スイッチ（True: 実行, False: スキップ）
 #----------------------------------------------------
+run_proposed_method = True
+run_proposed_nonoverlap_method = True
 
 # パラメータの設定
 N: int = 30
@@ -81,6 +83,7 @@ tv_sem_pp_nonoverlap = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED_NONOVERLAP(
     N, S_0, r_pp_nonoverlap, q_pp_nonoverlap, rho_pp_nonoverlap, mu_lambda_pp_nonoverlap, name="pp_nonoverlap"
 )
 
+#----------------------------------------------------
 # 実行関数の定義
 def run_tv_sem_pp() -> List[np.ndarray]:
     estimates_pp = tv_sem_pp.run(X)
@@ -91,61 +94,66 @@ def run_tv_sem_pp_nonoverlap() -> List[np.ndarray]:
     return estimates_pp_nonoverlap
 
 #----------------------------------------------------
-# 実行対象の関数をリストに追加
+# 実行対象の関数をリストに追加（スイッチにより実行を制御）
 job_list = []
-job_list.append(delayed(run_tv_sem_pp)())
-job_list.append(delayed(run_tv_sem_pp_nonoverlap)())
+if run_proposed_method:
+    job_list.append(delayed(run_tv_sem_pp)())
+if run_proposed_nonoverlap_method:
+    job_list.append(delayed(run_tv_sem_pp_nonoverlap)())
 
-results = Parallel(n_jobs=2)(job_list)
-#----------------------------------------------------
+if len(job_list) > 0:
+    results = Parallel(n_jobs=len(job_list))(job_list)
+else:
+    results = []
 
 # 結果格納用リストの初期化
 estimates_pp: List[np.ndarray] = []
 estimates_pp_nonoverlap: List[np.ndarray] = []
 
 # 実行順に応じて results から取り出す
-idx_result: int = 0
+result_idx: int = 0
+if run_proposed_method:
+    estimates_pp = results[result_idx]
+    result_idx += 1
+if run_proposed_nonoverlap_method:
+    estimates_pp_nonoverlap = results[result_idx]
+    result_idx += 1
 
-estimates_pp = results[idx_result]
-idx_result += 1
-estimates_pp_nonoverlap = results[idx_result]
-idx_result += 1
-
+#----------------------------------------------------
 # 解析・可視化のための変数定義
 S_opts: List[np.ndarray] = []
-NSE_pp: List[float] = []
-NSE_pp_nonoverlap: List[float] = []
 error_pp: List[float] = []
 error_pp_nonoverlap: List[float] = []
 
-sum_error_pp: List[float] = []
-sum_error_pp_non_overlap: List[float] = []
+# Proposed 手法のエラー計算
+if run_proposed_method:
+    for i, estimate in enumerate(estimates_pp):
+        error_val: float = (norm(estimate - S_series[i]) ** 2) / (norm(S_0 - S_series[i]) ** 2)
+        error_pp.append(error_val)
 
-for i, estimate in enumerate(estimates_pp):
-    error_val: float = (norm(estimate - S_series[i]) ** 2) / (norm(S_0 - S_series[i]) ** 2)
-    error_pp.append(error_val)
-    sum_error_pp.append((estimate - S_series[i]).sum())
+# Proposed_nonoverlap 手法のエラー計算
+if run_proposed_nonoverlap_method:
+    for i, estimate in enumerate(estimates_pp_nonoverlap):
+        error_val: float = (norm(estimate - S_series[i]) ** 2) / (norm(S_0 - S_series[i]) ** 2)
+        error_pp_nonoverlap.append(error_val)
 
-for i, estimate in enumerate(estimates_pp_nonoverlap):
-    error_val: float = (norm(estimate - S_series[i]) ** 2) / (norm(S_0 - S_series[i]) ** 2)
-    error_pp_nonoverlap.append(error_val)
-    sum_error_pp_non_overlap.append((estimate - S_series[i]).sum())
-
+#----------------------------------------------------
 # 結果のプロット
 plt.figure(figsize=(10,6))
 
-plt.plot(error_pp, color='red', label='Proposed')
-plt.plot(error_pp_nonoverlap, color='orange', label='Proposed_nonoverlap')
+if run_proposed_method:
+    plt.plot(error_pp, color='red', label='Proposed')
+if run_proposed_nonoverlap_method:
+    plt.plot(error_pp_nonoverlap, color='orange', label='Proposed_nonoverlap')
 
 plt.yscale('log')
 plt.xlim(left=0, right=T)
 plt.xlabel('t')
 plt.ylabel('NSE')
-plt.grid(True, "both")
+plt.grid(True, which="both")
 plt.legend()
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-
 notebook_filename: str = os.path.basename(__file__)
 
 filename: str = (
@@ -176,6 +184,5 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
