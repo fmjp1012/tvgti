@@ -8,7 +8,6 @@ import numpy as np
 from scipy.linalg import norm
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
-from multiprocessing import Manager
 
 from utils import *
 from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
@@ -69,23 +68,30 @@ mu_lambda: float = 1
 link_ratios = np.linspace(0.1, 0.9, 9)  # 例：0.1なら全体の10%のリンク
 link_percentage_values = link_ratios * 100  # プロット用に%
 
-# --- 各手法の最終NSEを格納するリスト ---
+# --- 各手法の最終NSEの平均値を格納するリスト ---
 final_NSE_pc = []
 final_NSE_co = []
 final_NSE_sgd = []
 final_NSE_pp = []
 
-# --- イテレーションごとのNSE推移を保存する図の保存先 ---
+# --- 結果画像の保存先 ---
 today_str: str = datetime.datetime.now().strftime('%y%m%d')
-iter_plots_dir: str = os.path.join('.', 'result', today_str, 'iter_plots')
-os.makedirs(iter_plots_dir, exist_ok=True)
+save_dir: str = os.path.join('.', 'result', today_str, 'images')
+os.makedirs(save_dir, exist_ok=True)
 
-# --- 各接続率に対するシミュレーション ---
-for sparsity in link_ratios:
+# --- 試行回数 ---
+num_trials = 100
+
+# --- 1回の試行を実行する関数 ---
+def run_simulation_trial(sparsity: float) -> Tuple[float, float, float, float]:
+    """
+    1回の試行を実行し、各手法の最終NSEを返す。
+    該当手法が無効の場合はnp.nanを返す。
+    """
     # 真の構造行列系列 S_series と観測データ X の生成
     S_series, X = generate_piecewise_X_K(N, T, S_is_symmetric, sparsity, max_weight, std_e, K)
     
-    # 初期値 S_0 の生成（各 sparsity ごとに生成）
+    # 初期値 S_0 の生成
     S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     S_0 = S_0 / norm(S_0)
     
@@ -95,114 +101,93 @@ for sparsity in link_ratios:
     tv_sem_sgd = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_sgd, 0, 0, C, name="sgd")
     tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, mu_lambda, name="pp")
     
-    # --- 各手法の実行関数 ---
-    def run_tv_sem_pc() -> Tuple[List[np.ndarray], List[float]]:
-        estimates, cost_values = tv_sem_pc.run(X)
-        return estimates, cost_values
-
-    def run_tv_sem_co() -> Tuple[List[np.ndarray], List[float]]:
-        estimates, cost_values = tv_sem_co.run(X)
-        return estimates, cost_values
-
-    def run_tv_sem_sgd() -> Tuple[List[np.ndarray], List[float]]:
-        estimates, cost_values = tv_sem_sgd.run(X)
-        return estimates, cost_values
-
-    def run_tv_sem_pp() -> List[np.ndarray]:
-        estimates = tv_sem_pp.run(X)
-        return estimates
-
-    # --- 実行対象の関数リスト作成 ---
+    # --- 各手法の実行関数をリスト化 ---
     job_list = []
     if run_pc_flag:
-        job_list.append(delayed(run_tv_sem_pc)())
+        job_list.append(delayed(tv_sem_pc.run)(X))
     if run_co_flag:
-        job_list.append(delayed(run_tv_sem_co)())
+        job_list.append(delayed(tv_sem_co.run)(X))
     if run_sgd_flag:
-        job_list.append(delayed(run_tv_sem_sgd)())
+        job_list.append(delayed(tv_sem_sgd.run)(X))
     if run_pp_flag:
-        job_list.append(delayed(run_tv_sem_pp)())
-
-    # 並列実行（n_jobs は適宜調整）
+        job_list.append(delayed(tv_sem_pp.run)(X))
+    
+    # 並列実行（内部の並列処理との二重並列に注意）
     results = Parallel(n_jobs=4)(job_list)
-
-    # --- 各手法のイテレーションごとのNSE推移を計算 ---
-    # 辞書にメソッド名ごとにエラー推移を保存（後でイテレーション推移図を作成）
-    iter_errors = {}
+    
+    # --- 各手法の最終NSEを計算 ---
     idx_result: int = 0
+    final_pc = np.nan
+    final_co = np.nan
+    final_sgd = np.nan
+    final_pp = np.nan
 
     if run_pc_flag:
         estimates_pc, _ = results[idx_result]
-        error_curve_pc = []
         num_iter = min(len(estimates_pc), len(S_series))
-        for i in range(num_iter):
-            err = (norm(estimates_pc[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
-            error_curve_pc.append(err)
-        final_NSE_pc.append(error_curve_pc[-1])
-        iter_errors['Prediction Correction'] = error_curve_pc
+        error_curve_pc = [(norm(estimates_pc[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
+                           for i in range(num_iter)]
+        final_pc = error_curve_pc[-1]
         idx_result += 1
-    else:
-        final_NSE_pc.append(np.nan)
 
     if run_co_flag:
         estimates_co, _ = results[idx_result]
-        error_curve_co = []
         num_iter = min(len(estimates_co), len(S_series))
-        for i in range(num_iter):
-            err = (norm(estimates_co[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
-            error_curve_co.append(err)
-        final_NSE_co.append(error_curve_co[-1])
-        iter_errors['Correction Only'] = error_curve_co
+        error_curve_co = [(norm(estimates_co[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
+                           for i in range(num_iter)]
+        final_co = error_curve_co[-1]
         idx_result += 1
-    else:
-        final_NSE_co.append(np.nan)
 
     if run_sgd_flag:
         estimates_sgd, _ = results[idx_result]
-        error_curve_sgd = []
         num_iter = min(len(estimates_sgd), len(S_series))
-        for i in range(num_iter):
-            err = (norm(estimates_sgd[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
-            error_curve_sgd.append(err)
-        final_NSE_sgd.append(error_curve_sgd[-1])
-        iter_errors['SGD'] = error_curve_sgd
+        error_curve_sgd = [(norm(estimates_sgd[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
+                           for i in range(num_iter)]
+        final_sgd = error_curve_sgd[-1]
         idx_result += 1
-    else:
-        final_NSE_sgd.append(np.nan)
 
     if run_pp_flag:
         estimates_pp = results[idx_result]
-        error_curve_pp = []
         num_iter = min(len(estimates_pp), len(S_series))
-        for i in range(num_iter):
-            err = (norm(estimates_pp[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
-            error_curve_pp.append(err)
-        final_NSE_pp.append(error_curve_pp[-1])
-        iter_errors['Proposed'] = error_curve_pp
+        error_curve_pp = [(norm(estimates_pp[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
+                          for i in range(num_iter)]
+        final_pp = error_curve_pp[-1]
         idx_result += 1
-    else:
-        final_NSE_pp.append(np.nan)
 
-    # --- 各接続率ごとのイテレーションごとのNSE推移のプロット ---
-    plt.figure(figsize=(10,6))
-    for method, error_curve in iter_errors.items():
-        plt.plot(error_curve, label=method)
-    plt.yscale('log')
-    plt.xlabel('Iteration')
-    plt.ylabel('NSE')
-    plt.title(f'NSE Progression for Link Percentage: {sparsity*100:.1f}%')
-    plt.grid(True, which='both')
-    plt.legend()
+    return final_pc, final_co, final_sgd, final_pp
 
-    timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename_iter: str = (
-        f'iter_N{N}_T{T}_sparsity{sparsity:.2f}_'
-        f'timestamp{timestamp}.png'
-    )
-    plt.savefig(os.path.join(iter_plots_dir, filename_iter))
-    plt.close()
+# --- 各接続率に対するシミュレーション ---
+for sparsity in link_ratios:
+    print(f"Link ratio {sparsity*100:.1f}%: Running {num_trials} trials...")
+    # 各試行の最終NSEを格納するリスト
+    trial_NSE_pc = []
+    trial_NSE_co = []
+    trial_NSE_sgd = []
+    trial_NSE_pp = []
+    
+    for trial in range(num_trials):
+        final_pc, final_co, final_sgd, final_pp = run_simulation_trial(sparsity)
+        if run_pc_flag:
+            trial_NSE_pc.append(final_pc)
+        if run_co_flag:
+            trial_NSE_co.append(final_co)
+        if run_sgd_flag:
+            trial_NSE_sgd.append(final_sgd)
+        if run_pp_flag:
+            trial_NSE_pp.append(final_pp)
+    
+    # 平均値を計算（各手法ごと）
+    avg_NSE_pc = np.nanmean(trial_NSE_pc) if run_pc_flag else np.nan
+    avg_NSE_co = np.nanmean(trial_NSE_co) if run_co_flag else np.nan
+    avg_NSE_sgd = np.nanmean(trial_NSE_sgd) if run_sgd_flag else np.nan
+    avg_NSE_pp = np.nanmean(trial_NSE_pp) if run_pp_flag else np.nan
 
-# --- 結果のプロット（最終時刻のNSE vs リンク割合） ---
+    final_NSE_pc.append(avg_NSE_pc)
+    final_NSE_co.append(avg_NSE_co)
+    final_NSE_sgd.append(avg_NSE_sgd)
+    final_NSE_pp.append(avg_NSE_pp)
+
+# --- 結果のプロット（最終時刻の平均NSE vs リンク割合） ---
 plt.figure(figsize=(10, 6))
 if run_pc_flag:
     plt.plot(link_percentage_values, final_NSE_pc, marker='o', color='limegreen', label='Prediction Correction')
@@ -215,7 +200,7 @@ if run_pp_flag:
 
 plt.yscale('log')
 plt.xlabel('Link Percentage (%)')
-plt.ylabel('Final NSE')
+plt.ylabel('Average Final NSE')
 plt.grid(True, which='both')
 plt.legend()
 
@@ -244,13 +229,11 @@ filename_final: str = (
     f'timestamp{timestamp}.png'
 )
 
-save_path_final: str = os.path.join('.', 'result', today_str, 'images')
-os.makedirs(save_path_final, exist_ok=True)
-plt.savefig(os.path.join(save_path_final, filename_final))
+plt.savefig(os.path.join(save_dir, filename_final))
 plt.show()
 
 # --- コードファイルのバックアップ ---
-copy_script_path: str = os.path.join(save_path_final, f"{notebook_filename}_backup_{timestamp}.py")
+copy_script_path: str = os.path.join(save_dir, f"{notebook_filename}_backup_{timestamp}.py")
 try:
     shutil.copy(notebook_filename, copy_script_path)
     print(f"Script file copied to: {copy_script_path}")

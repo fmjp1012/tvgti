@@ -14,7 +14,6 @@ from multiprocessing import Manager
 import optuna  # <-- Import Optuna
 
 from utils import *
-from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
 plt.rc('text', usetex=True)
