@@ -41,8 +41,8 @@ run_pp_flag: bool = True     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 30
-T: int = 3000
+N: int = 10
+T: int = 100000
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
