@@ -92,9 +92,9 @@ def objective(trial: optuna.trial.Trial) -> float:
 
     # r_suggested = trial.suggest_int("r", 5, 5000, step=5)     # 5,10,15,20, ..., 50
     # q_suggested = trial.suggest_int("q", 5, 5000, step=5)     # 5,10,15,20, ..., 50
-    mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-6, 2 - 1e-6, log=False)
+    # mu_lambda_suggested = trial.suggest_float("mu_lambda", 0.001, 1.999, log=False)
     rho_suggested = trial.suggest_float("rho", 1e-6,1, log=False)
-    # mu_lambda_suggested = mu_lambda_fixed
+    mu_lambda_suggested = mu_lambda_fixed
 
     # 2) モデルを作成して実行
     estimates_pp = run_tv_sem_pp(
@@ -139,9 +139,9 @@ best_q = q_fixed
 
 # best_r = best_trial.params["r"]
 # best_q = best_trial.params["q"]
-best_mu_lambda = best_trial.params["mu_lambda"]
+# best_mu_lambda = best_trial.params["mu_lambda"]
 best_rho = best_trial.params["rho"]
-# best_mu_lambda = mu_lambda_fixed
+best_mu_lambda = mu_lambda_fixed
 
 print(f"Best Hyperparams => r={best_r}, q={best_q}, rho={best_rho}, mu_lambda={best_mu_lambda}")
 

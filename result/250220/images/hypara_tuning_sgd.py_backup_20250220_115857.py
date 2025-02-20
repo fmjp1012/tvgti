@@ -14,8 +14,8 @@ from multiprocessing import Manager
 import optuna  # <-- Import Optuna
 
 from utils import *
-# pc手法用のモデルをインポート
-from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
+# sgd手法用のモデルをインポート
+from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_sgd_NONSPARSE
 
 plt.rc('text', usetex=True)
 plt.rc('font', family="serif")
@@ -34,11 +34,6 @@ plt.rcParams["xtick.minor.size"] = 5
 plt.rcParams["ytick.minor.size"] = 5
 plt.rcParams["font.size"] = 15
 
-#----------------------------------------------------
-# メソッドごとの実行スイッチ（今回はpc手法のみ）
-run_pc_flag: bool = True     # Prediction Correction
-#----------------------------------------------------
-
 # パラメータの設定
 N: int = 10
 T: int = 10000
@@ -49,10 +44,10 @@ std_e: float = np.sqrt(variance_e)
 K: int = 1
 S_is_symmetric: bool = True
 
-# pc手法固有の固定パラメータ
-P: int = 1
+# sgd手法固有の固定パラメータ
+P: int = 0
 C: int = 1
-gamma: float = 0.999
+gamma: float = 0
 
 seed: int = 3
 np.random.seed(seed)
@@ -68,18 +63,18 @@ S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
 #----------------------------------------------------
-# pc手法実行関数定義
-def run_tv_sem_pc(alpha: float, beta_pc: float) -> List[np.ndarray]:
-    """Run the pc method with specified hyperparams."""
-    tv_sem_pc = TimeVaryingSEM_PC_NONSPARSE(
-        N, S_0, alpha, beta_pc, gamma, P, C, name="pc"
+# sgd手法実行関数定義
+def run_tv_sem_sgd(beta_sgd: float) -> List[np.ndarray]:
+    """Run the sgd method with specified hyperparams."""
+    tv_sem_sgd = TimeVaryingSEM_sgd_NONSPARSE(
+        N, S_0, 0, beta_sgd, gamma, P, C, name="sgd"
     )
     # モデル実行：cost_valuesは今回は利用しないので無視
-    estimates_pc, _ = tv_sem_pc.run(X)
-    return estimates_pc
+    estimates_sgd, _ = tv_sem_sgd.run(X)
+    return estimates_sgd
 
 #-----------------------------------------------------------
-# Optuna で pc 手法のハイパーパラメータをチューニング
+# Optuna で sgd 手法のハイパーパラメータをチューニング
 #-----------------------------------------------------------
 
 def objective(trial: optuna.trial.Trial) -> float:
@@ -89,14 +84,13 @@ def objective(trial: optuna.trial.Trial) -> float:
     """
     # 1) ハイパーパラメータのサンプリング
     #    αとβₚ𝚌を対数スケールでサンプリング
-    alpha_suggested = trial.suggest_float("alpha", 0.001, 0.1, log=True)
-    beta_pc_suggested = trial.suggest_float("beta_pc", 0.001, 0.1, log=True)
+    beta_sgd_suggested = trial.suggest_float("beta_sgd", 0.001, 0.1, log=True)
 
     # 2) モデルを作成して実行
-    estimates_pc = run_tv_sem_pc(alpha=alpha_suggested, beta_pc=beta_pc_suggested)
+    estimates_sgd = run_tv_sem_sgd(beta_sgd=beta_sgd_suggested)
 
     # 3) 評価指標の計算（最終時刻のNSE）
-    final_estimate = estimates_pc[-1]
+    final_estimate = estimates_sgd[-1]
     final_true = S_series[-1]
     final_nse = (norm(final_estimate - final_true) ** 2) / (norm(S_0 - final_true) ** 2)
     
@@ -104,7 +98,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 # Optuna で探索
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=100)  # お好みでトライアル数を設定
+study.optimize(objective, n_trials=10)  # お好みでトライアル数を設定
 
 print("Study best trial:")
 best_trial = study.best_trial
@@ -112,26 +106,25 @@ print("  Params:", best_trial.params)
 print("  Value (final NSE):", best_trial.value)
 
 # ここで得られたベストパラメータを使って、再度モデルを走らせる
-best_alpha = best_trial.params["alpha"]
-best_beta_pc = best_trial.params["beta_pc"]
+best_beta_sgd = best_trial.params["beta_sgd"]
 
-print(f"Best Hyperparams => alpha={best_alpha}, beta_pc={best_beta_pc}, gamma={gamma}, P={P}, C={C}")
+print(f"Best Hyperparams => beta_sgd={best_beta_sgd}, gamma={gamma}, P={P}, C={C}")
 
 #----------------------------------------------------
-# チューニング済みパラメータで最終実行（pc手法）
+# チューニング済みパラメータで最終実行（sgd手法）
 #----------------------------------------------------
 
-estimates_pc_tuned = run_tv_sem_pc(alpha=best_alpha, beta_pc=best_beta_pc)
+estimates_sgd_tuned = run_tv_sem_sgd(beta_sgd=best_beta_sgd)
 
 # チューニング後のNSEを計算
-error_pc_tuned = []
-for i, estimate in enumerate(estimates_pc_tuned):
+error_sgd_tuned = []
+for i, estimate in enumerate(estimates_sgd_tuned):
     val = (norm(estimate - S_series[i]) ** 2) / (norm(S_0 - S_series[i]) ** 2)
-    error_pc_tuned.append(val)
+    error_sgd_tuned.append(val)
 
 # プロット
 plt.figure(figsize=(10, 6))
-plt.plot(error_pc_tuned, color='limegreen', label='Prediction Correction (Tuned pc)')
+plt.plot(error_sgd_tuned, color='limegreen', label='SGD (Tuned sgd)')
 plt.yscale('log')
 plt.xlim(left=0, right=T)
 plt.xlabel('t')
@@ -146,8 +139,7 @@ filename: str = (
     f'result_N{N}_'
     f'notebook_filename{notebook_filename}_'
     f'seed{seed}_'
-    f'alpha{best_alpha}_'
-    f'beta_pc{best_beta_pc}_'
+    f'beta_sgd{best_beta_sgd}_'
     f'gamma{gamma}_'
     f'P{P}_'
     f'C{C}_'
