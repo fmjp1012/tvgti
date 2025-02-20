@@ -15,27 +15,34 @@ from utils import *
 from models.tvgti_pc_nonsparse import TimeVaryingSEM as TimeVaryingSEM_PC_NONSPARSE
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
-plt.rc('text',usetex=True)
-plt.rc('font',family="serif")
-plt.rcParams["font.family"] = "Times New Roman"      #全体のフォントを設定
-plt.rcParams["xtick.direction"] = "in"               #x軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
-plt.rcParams["ytick.direction"] = "in"               #y軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
-plt.rcParams["xtick.minor.visible"] = True          #x軸補助目盛りの追加
-plt.rcParams["ytick.minor.visible"] = True          #y軸補助目盛りの追加
-plt.rcParams["xtick.major.width"] = 1.5              #x軸主目盛り線の線幅
-plt.rcParams["ytick.major.width"] = 1.5              #y軸主目盛り線の線幅
-plt.rcParams["xtick.minor.width"] = 1.0              #x軸補助目盛り線の線幅
-plt.rcParams["ytick.minor.width"] = 1.0              #y軸補助目盛り線の線幅
-plt.rcParams["xtick.major.size"] = 10                #x軸主目盛り線の長さ
-plt.rcParams["ytick.major.size"] = 10                #y軸主目盛り線の長さ
-plt.rcParams["xtick.minor.size"] = 5                #x軸補助目盛り線の長さ
-plt.rcParams["ytick.minor.size"] = 5                #y軸補助目盛り線の長さ
-plt.rcParams["font.size"] = 15                       #フォントの大きさ
+# プロットの設定
+plt.rc('text', usetex=True)
+plt.rc('font', family="serif")
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["xtick.direction"] = "in"
+plt.rcParams["ytick.direction"] = "in"
+plt.rcParams["xtick.minor.visible"] = True
+plt.rcParams["ytick.minor.visible"] = True
+plt.rcParams["xtick.major.width"] = 1.5
+plt.rcParams["ytick.major.width"] = 1.5
+plt.rcParams["xtick.minor.width"] = 1.0
+plt.rcParams["ytick.minor.width"] = 1.0
+plt.rcParams["xtick.major.size"] = 10
+plt.rcParams["ytick.major.size"] = 10
+plt.rcParams["xtick.minor.size"] = 5
+plt.rcParams["ytick.minor.size"] = 5
+plt.rcParams["font.size"] = 15
 
-# 試行回数の設定
+#-------------------------
+# 手法ごとの実行スイッチフラグ
+run_pc_flag = True     # Prediction Correction（PC）
+run_co_flag = True     # Correction Only（CO）
+run_sgd_flag = True    # SGD
+run_pp_flag = True     # Proposed（PP）
+#-------------------------
+
+# 試行回数・パラメータの設定
 num_trials = 10
-
-# パラメータの設定
 N = 10
 T = 20000
 sparsity = 100
@@ -45,7 +52,7 @@ std_e = np.sqrt(variance_e)
 K = 4
 S_is_symmetric = True
 
-seed = 42  # 基本のシード
+seed = 42  # 基本シード
 
 # TV-SEMパラメータ
 P = 1
@@ -63,74 +70,98 @@ rho = 0.15
 mu_lambda = 0.5
 
 def run_trial(trial_seed):
-    np.random.seed(trial_seed)  # シードを試行ごとに設定
+    np.random.seed(trial_seed)  # 試行ごとにシード設定
 
     # データの生成
     S_series, X = generate_piecewise_X_K(N, T, S_is_symmetric, sparsity, max_weight, std_e, K)
-
+    
     # 初期値の設定
     S_0 = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     S_0 = S_0 / norm(S_0)
 
-    # モデルのインスタンス化（並列処理を無効化したい場合は注意）
-    tv_sem_pc = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_pc, gamma, P, C, False)
-    tv_sem_co = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_co, gamma, 0, C, False)
-    tv_sem_sgd = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_sgd, 0, 0, C, False)
-    tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, mu_lambda, False)
+    errors = {}
 
-    # 並列処理を無効化するために直接呼び出しているが、Parallel( n_jobs=... ) を使ってもOK
-    estimates_pc, cost_values_pc = tv_sem_pc.run(X)
-    estimates_co, cost_values_co = tv_sem_co.run(X)
-    estimates_sgd, cost_values_sgd = tv_sem_sgd.run(X)
-    estimates_pp = tv_sem_pp.run(X)
+    # Prediction Correction
+    if run_pc_flag:
+        tv_sem_pc = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_pc, gamma, P, C, False)
+        estimates_pc, cost_values_pc = tv_sem_pc.run(X)
+        error_pc = [ (norm(estimates_pc[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
+                     for i in range(T) ]
+        errors['pc'] = error_pc
 
-    # エラーの計算
-    error_pc = []
-    error_co = []
-    error_sgd = []
-    error_pp = []
+    # Correction Only
+    if run_co_flag:
+        tv_sem_co = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_co, gamma, 0, C, False)
+        estimates_co, cost_values_co = tv_sem_co.run(X)
+        error_co = [ (norm(estimates_co[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
+                     for i in range(T) ]
+        errors['co'] = error_co
 
-    for i in range(T):
-        error_pc.append(norm(estimates_pc[i] - S_series[i]) ** 2 / (norm(S_0 - S_series[i]) ** 2))
-        error_co.append(norm(estimates_co[i] - S_series[i]) ** 2 / (norm(S_0 - S_series[i]) ** 2))
-        error_sgd.append(norm(estimates_sgd[i] - S_series[i]) ** 2 / (norm(S_0 - S_series[i]) ** 2))
-        error_pp.append(norm(estimates_pp[i] - S_series[i]) ** 2 / (norm(S_0 - S_series[i]) ** 2))
+    # SGD
+    if run_sgd_flag:
+        tv_sem_sgd = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_sgd, 0, 0, C, False)
+        estimates_sgd, cost_values_sgd = tv_sem_sgd.run(X)
+        error_sgd = [ (norm(estimates_sgd[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
+                      for i in range(T) ]
+        errors['sgd'] = error_sgd
 
-    return error_pc, error_co, error_sgd, error_pp
+    # Proposed
+    if run_pp_flag:
+        tv_sem_pp = TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED(N, S_0, r, q, rho, mu_lambda, False)
+        estimates_pp = tv_sem_pp.run(X)
+        error_pp = [ (norm(estimates_pp[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2)
+                     for i in range(T) ]
+        errors['pp'] = error_pp
+
+    return errors
 
 # 試行ごとのシードを作成
 trial_seeds = [seed + i for i in range(num_trials)]
 
-# tqdm_joblib を使って Parallel の処理に進捗表示を付ける
+# 並列処理で各試行を実行（tqdm_joblib により進捗表示）
 with tqdm_joblib(tqdm(desc="Progress", total=num_trials)) as progress_bar:
     results = Parallel(n_jobs=-1, batch_size=1)(
         delayed(run_trial)(trial_seed) for trial_seed in trial_seeds
     )
 
-# 結果の集計
-error_pc_total = np.zeros(T)
-error_co_total = np.zeros(T)
-error_sgd_total = np.zeros(T)
-error_pp_total = np.zeros(T)
+# 各手法ごとの誤差の合計（T×1の配列）を初期化
+error_pc_total = np.zeros(T) if run_pc_flag else None
+error_co_total = np.zeros(T) if run_co_flag else None
+error_sgd_total = np.zeros(T) if run_sgd_flag else None
+error_pp_total = np.zeros(T) if run_pp_flag else None
 
-for error_pc, error_co, error_sgd, error_pp in results:
-    error_pc_total += np.array(error_pc)
-    error_co_total += np.array(error_co)
-    error_sgd_total += np.array(error_sgd)
-    error_pp_total += np.array(error_pp)
+# 試行ごとに結果を集計
+for errors in results:
+    if run_pc_flag:
+        error_pc_total += np.array(errors['pc'])
+    if run_co_flag:
+        error_co_total += np.array(errors['co'])
+    if run_sgd_flag:
+        error_sgd_total += np.array(errors['sgd'])
+    if run_pp_flag:
+        error_pp_total += np.array(errors['pp'])
 
-# 平均の計算
-error_pc_mean = error_pc_total / num_trials
-error_co_mean = error_co_total / num_trials
-error_sgd_mean = error_sgd_total / num_trials
-error_pp_mean = error_pp_total / num_trials
+# 試行ごとの平均誤差を計算
+if run_pc_flag:
+    error_pc_mean = error_pc_total / num_trials
+if run_co_flag:
+    error_co_mean = error_co_total / num_trials
+if run_sgd_flag:
+    error_sgd_mean = error_sgd_total / num_trials
+if run_pp_flag:
+    error_pp_mean = error_pp_total / num_trials
 
 # 結果のプロット
-plt.figure(figsize=(10,6))
-plt.plot(error_co_mean, color='blue', label='Correction Only')
-plt.plot(error_pc_mean, color='limegreen', label='Prediction Correction')
-plt.plot(error_sgd_mean, color='cyan', label='SGD')
-plt.plot(error_pp_mean, color='red', label='Proposed')
+plt.figure(figsize=(10, 6))
+if run_co_flag:
+    plt.plot(error_co_mean, color='blue', label='Correction Only')
+if run_pc_flag:
+    plt.plot(error_pc_mean, color='limegreen', label='Prediction Correction')
+if run_sgd_flag:
+    plt.plot(error_sgd_mean, color='cyan', label='SGD')
+if run_pp_flag:
+    plt.plot(error_pp_mean, color='red', label='Proposed')
+
 plt.yscale('log')
 plt.xlim(left=0, right=T)
 plt.xlabel('t')
@@ -138,9 +169,9 @@ plt.ylabel('Average NSE')
 plt.grid(True, 'both')
 plt.legend()
 
+# ファイル名の生成と保存先の設定
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 notebook_filename = os.path.basename(__file__)
-
 filename = (
     f'result_N{N}_'
     f'notebook_filename{notebook_filename}_'
@@ -164,15 +195,13 @@ filename = (
     f'mu_lambda{mu_lambda}_'
     f'timestamp{timestamp}_.png'
 )
-
 print(filename)
 today_str = datetime.datetime.now().strftime('%y%m%d')
-save_path = f'./result/{today_str}/images'
-os.makedirs(save_path, exist_ok=True)  # ディレクトリが無い場合は作成
+save_path = os.path.join('./result', today_str, 'images')
+os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 copy_ipynb_path = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-
 shutil.copy(notebook_filename, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")
