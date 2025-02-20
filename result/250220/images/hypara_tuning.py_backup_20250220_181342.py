@@ -92,8 +92,8 @@ def objective(trial: optuna.trial.Trial) -> float:
 
     # r_suggested = trial.suggest_int("r", 5, 5000, step=5)     # 5,10,15,20, ..., 50
     # q_suggested = trial.suggest_int("q", 5, 5000, step=5)     # 5,10,15,20, ..., 50
-    mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-4, 1, log=False)
-    rho_suggested = trial.suggest_float("rho", 1e-3, 1.5, log=False)
+    mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-6, 2 - 1e-6, log=False)
+    rho_suggested = trial.suggest_float("rho", 1e-6,2, log=False)
     # mu_lambda_suggested = mu_lambda_fixed
 
     # 2) モデルを作成して実行
@@ -126,7 +126,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 # Optuna で探索
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=1000)  # お好みでトライアル数を設定
+study.optimize(objective, n_trials=100)  # お好みでトライアル数を設定
 
 print("Study best trial:")
 best_trial = study.best_trial
