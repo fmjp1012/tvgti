@@ -37,11 +37,11 @@ plt.rcParams["font.size"] = 15                       #フォントの大きさ
 run_pc_flag: bool = True     # Prediction Correction
 run_co_flag: bool = False     # Correction Only
 run_sgd_flag: bool = False    # SGD
-run_pp_flag: bool = True     # Proposed
+run_pp_flag: bool = False     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 30
+N: int = 10
 T: int = 10000
 sparsity: float = 0
 max_weight: float = 0.5
@@ -73,9 +73,9 @@ S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
 S_0 = S_0 / norm(S_0)
 
 # その他のパラメータ
-r: int = 30  # window size
-q: int = 20  # number of processors
-rho: float = 2.48  # 試行回数の設定
+r: int = 4  # window size
+q: int = 10  # number of processors
+rho: float = 0.15  # 試行回数の設定
 mu_lambda: float = 1
 
 # モデルのインスタンス化

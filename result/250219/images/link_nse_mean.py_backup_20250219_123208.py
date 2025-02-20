@@ -65,7 +65,7 @@ mu_lambda: float = 1
 
 # --- 接続率（リンク数の割合）を変化させる ---
 # ここでは10%～90%の9段階でシミュレーション
-link_ratios = np.linspace(0.9, 0.93, 4)  # 例：0.1なら全体の10%のリンク
+link_ratios = np.linspace(0.1, 0.9, 9)  # 例：0.1なら全体の10%のリンク
 link_percentage_values = link_ratios * 100  # プロット用に%
 
 # --- 各手法の最終NSEの平均値を格納するリスト ---
