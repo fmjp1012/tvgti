@@ -42,9 +42,9 @@ run_pp_flag = True     # Proposed（PP）
 #-------------------------
 
 # 試行回数・パラメータの設定
-num_trials = 100
+num_trials = 10
 N = 30
-T = 30000
+T = 3000
 sparsity = 0
 max_weight = 0.5
 variance_e = 0.005
