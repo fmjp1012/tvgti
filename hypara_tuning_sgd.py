@@ -35,8 +35,8 @@ plt.rcParams["ytick.minor.size"] = 5
 plt.rcParams["font.size"] = 15
 
 # パラメータの設定
-N: int = 10
-T: int = 10000
+N: int = 30
+T: int = 3000
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -84,7 +84,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     """
     # 1) ハイパーパラメータのサンプリング
     #    αとβₚ𝚌を対数スケールでサンプリング
-    beta_sgd_suggested = trial.suggest_float("beta_sgd", 0.001, 0.1, log=True)
+    beta_sgd_suggested = trial.suggest_float("beta_sgd", 1e-6, 3, log=True)
 
     # 2) モデルを作成して実行
     estimates_sgd = run_tv_sem_sgd(beta_sgd=beta_sgd_suggested)

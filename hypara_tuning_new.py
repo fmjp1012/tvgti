@@ -80,49 +80,44 @@ def run_tv_sem_pp(r: int, q: int, rho: float, mu_lambda: float) -> List[np.ndarr
 #-----------------------------------------------------------
 # Optuna で pp 手法のハイパーパラメータをチューニング
 #-----------------------------------------------------------
-
 def objective(trial: optuna.trial.Trial) -> float:
     """
-    Objective function to minimize. We'll compute the average NSE across all time steps t.
+    目的関数を、最終時刻1点のNSEではなく、
+    シミュレーション後半のウィンドウにおける平均NSEとそのばらつきを組み合わせた指標に変更する例。
     """
     # 1) ハイパーパラメータのサンプリング
-    #    適当に検索範囲を設定していますので、必要に応じて変更してください
     r_suggested = r_fixed
     q_suggested = q_fixed
-
-    # r_suggested = trial.suggest_int("r", 5, 5000, step=5)     # 5,10,15,20, ..., 50
-    # q_suggested = trial.suggest_int("q", 5, 5000, step=5)     # 5,10,15,20, ..., 50
     mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-6, 2 - 1e-6, log=False)
-    rho_suggested = trial.suggest_float("rho", 1e-6,3, log=False)
-    # mu_lambda_suggested = mu_lambda_fixed
-
-    # 2) モデルを作成して実行
+    rho_suggested = trial.suggest_float("rho", 1e-6, 3, log=False)
+    
+    # 2) モデルの実行
     estimates_pp = run_tv_sem_pp(
         r=r_suggested,
         q=q_suggested,
         rho=rho_suggested,
         mu_lambda=mu_lambda_suggested
     )
-
-    # 3) 評価指標を計算 (ここでは平均 NSE)
-    #    NSE_t = ||S_hat(t) - S_series(t)||^2 / ||S_0 - S_series(t)||^2
-    #    → 全時刻 t の NSE を平均化
-    #    必要に応じて別の指標に変更可
-    # nse_list = []
-    # for i, estimate in enumerate(estimates_pp):
-    #     numerator = norm(estimate - S_series[i])**2
-    #     denominator = norm(S_0 - S_series[i])**2
-    #     nse_list.append(numerator / denominator)
-    # avg_nse = np.mean(nse_list)
-
-    # return avg_nse
-
-    # 3) 評価指標を計算 (最終時刻のNSE)
-    final_estimate = estimates_pp[-1]
-    final_true = S_series[-1]
-    final_nse = (norm(final_estimate - final_true) ** 2) / (norm(S_0 - final_true) ** 2)
     
-    return final_nse
+    # 3) 各時刻でのNSEを計算
+    nse_list = []
+    for i, estimate in enumerate(estimates_pp):
+        nse_val = (norm(estimate - S_series[i]) ** 2) / (norm(S_0 - S_series[i]) ** 2)
+        nse_list.append(nse_val)
+    
+    # 4) 評価ウィンドウの設定 (例: 最後20%の時刻)
+    window_size = int(0.2 * T)  # Tは総時刻数
+    window_nse = nse_list[-window_size:]
+    
+    # 5) ウィンドウ内の平均NSEと標準偏差を計算
+    avg_nse = np.mean(window_nse)
+    std_nse = np.std(window_nse)
+    
+    # 6) 目的関数として、平均NSEにばらつきのペナルティを加える（lambda_penaltyで重み付け）
+    lambda_penalty = 1.0  # この値は評価の重み付けとして調整可能
+    objective_value = avg_nse + lambda_penalty * std_nse
+    
+    return objective_value
 
 # Optuna で探索
 study = optuna.create_study(direction="minimize")

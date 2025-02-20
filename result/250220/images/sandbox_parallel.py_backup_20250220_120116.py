@@ -42,7 +42,7 @@ run_pp_flag: bool = True     # Proposed
 
 # パラメータの設定
 N: int = 10
-T: int = 100000
+T: int = 10000
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -75,8 +75,8 @@ S_0 = S_0 / norm(S_0)
 # その他のパラメータ
 r: int = 1  # window size
 q: int = 1  # number of processors
-rho: float = 0.0918
-mu_lambda: float = 0.473
+rho: float = 0.0637
+mu_lambda: float = 0.00857
 
 # モデルのインスタンス化
 tv_sem_pc = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_pc, gamma, P, C, name="pc")
