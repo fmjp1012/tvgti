@@ -35,24 +35,24 @@ plt.rcParams["font.size"] = 15
 
 #-------------------------
 # 手法ごとの実行スイッチフラグ
-run_pc_flag = True     # Prediction Correction（PC）
-run_co_flag = True     # Correction Only（CO）
+run_pc_flag = False     # Prediction Correction（PC）
+run_co_flag = False     # Correction Only（CO）
 run_sgd_flag = True    # SGD
 run_pp_flag = True     # Proposed（PP）
 #-------------------------
 
 # 試行回数・パラメータの設定
 num_trials = 10
-N = 10
-T = 20000
-sparsity = 100
+N = 30
+T = 3000
+sparsity = 0
 max_weight = 0.5
 variance_e = 0.005
 std_e = np.sqrt(variance_e)
-K = 4
+K = 1
 S_is_symmetric = True
 
-seed = 42  # 基本シード
+seed = 3  # 基本シード
 
 # TV-SEMパラメータ
 P = 1
@@ -61,13 +61,13 @@ gamma = 0.999
 alpha = 0.015
 beta_pc = 0.015
 beta_co = 0.02
-beta_sgd = 0.02
+beta_sgd = 0.0269
 
 # その他のパラメータ
-r = 4  # window size
-q = 20  # number of processors
-rho = 0.15
-mu_lambda = 0.5
+r = 1  # window size
+q = 1  # number of processors
+rho = 0.0641
+mu_lambda = 0.1
 
 def run_trial(trial_seed):
     np.random.seed(trial_seed)  # 試行ごとにシード設定
