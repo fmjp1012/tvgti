@@ -283,3 +283,59 @@ def generate_linear_X(
     X = np.concatenate(X_list, axis=1)
     
     return S_series, X
+
+def generate_linear_X_L(
+    N: int,
+    T: int,
+    L: int,
+    S_is_symmetric: bool,
+    sparsity: float,
+    max_weight: float,
+    std_e: float
+) -> Tuple[List[np.ndarray], np.ndarray]:
+    """
+    - まず L 個のランダムな隣接行列 S_0, S_1, ..., S_{L-1} を生成する．
+    - 時刻 t=0 から t=T-1 まで，global_lambda = t/(T-1) を用いて
+      セグメント index = floor(global_lambda*(L-1)) と local_lambda を計算し，
+      S(t) = (1 - local_lambda)*S_segment + local_lambda * S_{segment+1} として
+      線形補完を行う．（ただし t=T-1 の場合は S_{L-1} を採用）
+    - 各時刻 t で，X(t) = (I - S(t))^{-1} e(t) として外生ショック e(t) から
+      観測データ X を生成する．
+    
+    返り値:
+      S_series: 時刻 t=0,...,T-1 における S(t) を格納したリスト (長さ T)
+      X       : 観測データ (N x T)
+    """
+    # L 個の S を生成
+    S_points = [generate_random_S(N, sparsity, max_weight, S_is_symmetric) for _ in range(L)]
+    
+    S_series = []
+    I = np.eye(N)
+    
+    for t in range(T):
+        if T == 1:
+            # 特殊ケース: T==1 の場合は最初の S を採用
+            S_t = S_points[0]
+        else:
+            global_lambda = t / (T - 1)
+            # t=T-1 で global_lambda==1 になると segment_index==L-1となるので，
+            # 補完せずに最終値を採用する
+            if global_lambda >= 1.0:
+                S_t = S_points[-1]
+            else:
+                # 補完するセグメントを決定
+                segment = int(global_lambda * (L - 1))
+                local_lambda = (global_lambda * (L - 1)) - segment
+                S_t = (1.0 - local_lambda) * S_points[segment] + local_lambda * S_points[segment + 1]
+        S_series.append(S_t)
+    
+    # 各時刻 t ごとに (I - S(t)) の逆行列を計算し，外生ショックから X を生成
+    e_t_series = np.random.normal(0, std_e, size=(N, T))
+    X_list = []
+    for t in range(T):
+        inv_I_S = np.linalg.inv(I - S_series[t])
+        x_t = inv_I_S @ e_t_series[:, t]
+        X_list.append(x_t.reshape(N, 1))
+    
+    X = np.concatenate(X_list, axis=1)
+    return S_series, X
