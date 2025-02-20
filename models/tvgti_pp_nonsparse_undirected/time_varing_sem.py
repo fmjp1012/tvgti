@@ -55,6 +55,7 @@ class TimeVaryingSEM:
             denominator = norm(sum_weighted_projection_sp - self.S) ** 2
             M_k = numerator / denominator
             self.S = self.S + self.mu_lambda * M_k * (sum_weighted_projection_sp - self.S)
+
             np.fill_diagonal(self.S, 0)  # Ensure diagonal elements are zero
         else:
             M_k = 1
@@ -72,9 +73,15 @@ class TimeVaryingSEM:
         for t, x in enumerate(iterator):
             if t - self.q - self.r + 2 >= 0:
                 self.parallel_projection(X[:, t - self.q - self.r + 2: t+1])
+                self.S = (self.S + self.S.T) / 2
+                np.fill_diagonal(self.S, 0)  # Ensure diagonal elements are zero
             else:
                 self.parallel_projection(X)
+                self.S = (self.S + self.S.T) / 2
+                np.fill_diagonal(self.S, 0)  # Ensure diagonal elements are zero
 
+            assert np.allclose(self.S, self.S.T), "Sは対称行列ではありません"
+            assert np.all(np.diag(self.S) == 0), "Sの対角成分が0ではありません"
             estimates.append(self.S.copy())
         
         return estimates
