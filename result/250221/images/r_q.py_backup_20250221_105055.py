@@ -77,8 +77,8 @@ S_0 = S_0 / norm(S_0)
 # --- rを変化させる場合 ---
 r_list = [1, 2, 4, 8, 40]           # 試すrの値
 q_fixed = 1                        # qは固定
-rho_list_r = [0.015, 0.0793, 0.134, 0.237, 1.034]       # rごとのrhoの値（r_listと同じ長さ）
-mu_lambda_list_r = [0.00857, 0.33, 0.0867, 0.041, 0.0154] # rごとのmu_lambdaの値
+rho_list_r = [0.015, 0.0793, 0.134, 0.303, 1.034]       # rごとのrhoの値（r_listと同じ長さ）
+mu_lambda_list_r = [0.00857, 0.33, 0.0867, 0.864, 0.0154] # rごとのmu_lambdaの値
 
 # --- qを変化させる場合 ---
 q_list = [1, 2, 4, 8, 40]            # 試すqの値
@@ -113,7 +113,7 @@ pp_estimates_for_r = {}  # rごとの推定列を保存
 if run_pp_r_flag:
     # 並列実行のためのパラメータリスト作成
     params_r = [(r, q_fixed, rho, mu) for r, rho, mu in zip(r_list, rho_list_r, mu_lambda_list_r)]
-    results_r = Parallel(n_jobs=-1)(
+    results_r = Parallel(n_jobs=4)(
         delayed(run_tv_sem_pp)(r, q, rho, mu) for r, q, rho, mu in params_r
     )
     pp_estimates_for_r = {r: result for r, result in zip(r_list, results_r)}

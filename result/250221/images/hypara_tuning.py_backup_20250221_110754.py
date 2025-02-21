@@ -51,7 +51,7 @@ std_e: float = np.sqrt(variance_e)
 K: int = 1
 S_is_symmetric: bool = True
 
-r_fixed = 1
+r_fixed = 8
 q_fixed = 1
 # mu_lambda_fixed = 1
 
@@ -92,8 +92,8 @@ def objective(trial: optuna.trial.Trial) -> float:
 
     # r_suggested = trial.suggest_int("r", 5, 5000, step=5)     # 5,10,15,20, ..., 50
     # q_suggested = trial.suggest_int("q", 5, 5000, step=5)     # 5,10,15,20, ..., 50
-    mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-6, 0.1, log=False)
-    rho_suggested = trial.suggest_float("rho", 1e-6, 0.1, log=False)
+    mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-4, 0.1, log=False)
+    rho_suggested = trial.suggest_float("rho", 0.1, 1, log=False)
     # mu_lambda_suggested = mu_lambda_fixed
 
     # 2) モデルを作成して実行

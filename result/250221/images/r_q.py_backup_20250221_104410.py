@@ -37,14 +37,12 @@ plt.rcParams["font.size"] = 15
 run_pc_flag: bool = False     # Prediction Correction
 run_co_flag: bool = False     # Correction Only
 run_sgd_flag: bool = False    # SGD
-# Proposed手法は、rを変化させるシミュレーションとqを変化させるシミュレーションに分割
-run_pp_r_flag: bool = True    # rを変化させるシミュレーションの実行をONにする場合はTrue
-run_pp_q_flag: bool = False    # qを変化させるシミュレーションの実行をONにする場合はTrue
-
+run_pp_flag: bool = True      # Proposed
 #----------------------------------------------------
+
 # パラメータの設定
 N: int = 10
-T: int = 40000
+T: int = 100000
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -76,15 +74,15 @@ S_0 = S_0 / norm(S_0)
 
 # --- rを変化させる場合 ---
 r_list = [1, 2, 4, 8, 40]           # 試すrの値
-q_fixed = 1                        # qは固定
-rho_list_r = [0.015, 0.0793, 0.134, 0.237, 1.034]       # rごとのrhoの値（r_listと同じ長さ）
-mu_lambda_list_r = [0.00857, 0.33, 0.0867, 0.041, 0.0154] # rごとのmu_lambdaの値
+q_fixed = 1                     # qは固定
+rho_list_r = [0.015, 0.0793, 0.134, 0.303, 1.034]       # rごとのrhoの値（r_listと同じ長さ）
+mu_lambda_list_r = [0.00857, 0.33, 0.0867, 0.864, 0.0154]     # rごとのmu_lambdaの値
 
 # --- qを変化させる場合 ---
 q_list = [1, 2, 4, 8, 40]            # 試すqの値
-r_fixed = 1                          # rは固定
-rho_list_q = [0.015, 0.0297, 0.0321, 0.0281, 0.069]      # qごとのrhoの値（q_listと同じ長さ）
-mu_lambda_list_q = [0.00857, 0.0305, 0.0264, 0.00939, 1.202] # qごとのmu_lambdaの値
+r_fixed = 1                     # rは固定
+rho_list_q = [0.015, 0.0297, 0.0321, 0.0281, 0.069]           # qごとのrhoの値（q_listと同じ長さ）
+mu_lambda_list_q = [0.00857, 0.0305, 0.0264, 0.00939, 1.202]            # qごとのmu_lambdaの値
 
 #----------------------------------------------------
 # モデルのインスタンス化（PP手法以外）
@@ -108,23 +106,29 @@ def run_tv_sem_pp(r_val: int, q_val: int, rho_val: float, mu_lambda_val: float) 
     return estimates_pp_tmp
 
 #----------------------------------------------------
+# 並列実行用のラッパー関数
+def run_tv_sem_pp_wrapper(r_val: int, q_val: int, rho_val: float, mu_lambda_val: float):
+    print(f"Run pp method with r={r_val}, q={q_val}, rho={rho_val}, mu_lambda={mu_lambda_val}")
+    return run_tv_sem_pp(r_val, q_val, rho_val, mu_lambda_val)
+
+#----------------------------------------------------
 # Proposed手法: r を変化させる場合の並列実行
 pp_estimates_for_r = {}  # rごとの推定列を保存
-if run_pp_r_flag:
+if run_pp_flag:
     # 並列実行のためのパラメータリスト作成
     params_r = [(r, q_fixed, rho, mu) for r, rho, mu in zip(r_list, rho_list_r, mu_lambda_list_r)]
-    results_r = Parallel(n_jobs=-1)(
-        delayed(run_tv_sem_pp)(r, q, rho, mu) for r, q, rho, mu in params_r
+    results_r = Parallel(n_jobs=4)(
+        delayed(run_tv_sem_pp_wrapper)(r, q, rho, mu) for r, q, rho, mu in params_r
     )
     pp_estimates_for_r = {r: result for r, result in zip(r_list, results_r)}
 
 #----------------------------------------------------
 # Proposed手法: q を変化させる場合の並列実行
 pp_estimates_for_q = {}  # qごとの推定列を保存
-if run_pp_q_flag:
+if run_pp_flag:
     params_q = [(r_fixed, q, rho, mu) for q, rho, mu in zip(q_list, rho_list_q, mu_lambda_list_q)]
     results_q = Parallel(n_jobs=4)(
-        delayed(run_tv_sem_pp)(r, q, rho, mu) for r, q, rho, mu in params_q
+        delayed(run_tv_sem_pp_wrapper)(r, q, rho, mu) for r, q, rho, mu in params_q
     )
     pp_estimates_for_q = {q: result for q, result in zip(q_list, results_q)}
 
@@ -147,17 +151,17 @@ def calc_nse_series(estimates_list: List[np.ndarray], true_S_list: List[np.ndarr
     return nse_arr
 
 #----------------------------------------------------
-# r を変化させた Proposed 手法の NSE を計算
+# r を変化させた pp の NSE を計算
 pp_error_for_r = {}  # {r_val: [NSE(t=0), NSE(t=1), ...], ...}
-if run_pp_r_flag:
+if run_pp_flag:
     for r_val in r_list:
         estimates_r = pp_estimates_for_r[r_val]
         pp_error_for_r[r_val] = calc_nse_series(estimates_r, S_series, S_0)
 
 #----------------------------------------------------
-# q を変化させた Proposed 手法の NSE を計算
+# q を変化させた pp の NSE を計算
 pp_error_for_q = {}  # {q_val: [NSE(t=0), NSE(t=1), ...], ...}
-if run_pp_q_flag:
+if run_pp_flag:
     for q_val in q_list:
         estimates_q = pp_estimates_for_q[q_val]
         pp_error_for_q[q_val] = calc_nse_series(estimates_q, S_series, S_0)
@@ -170,40 +174,38 @@ os.makedirs(save_path, exist_ok=True)
 #--------------------------
 # Proposed手法: r を変化
 #--------------------------
-if run_pp_r_flag:
-    plt.figure(figsize=(10, 6))
-    for r_val in r_list:
-        label_str = f'PP (r={r_val}, q={q_fixed})'
-        plt.plot(pp_error_for_r[r_val], label=label_str)
+plt.figure(figsize=(10, 6))
+for r_val in r_list:
+    label_str = f'PP (r={r_val}, q={q_fixed})'
+    plt.plot(pp_error_for_r[r_val], label=label_str)
 
-    plt.yscale('log')
-    plt.xlim(left=0, right=T)
-    plt.xlabel('t')
-    plt.ylabel('NSE')
-    plt.grid(True, which="both")
-    plt.legend()
-    filename_r = f'compare_PP_r_values_{timestamp}.png'
-    plt.savefig(os.path.join(save_path, filename_r))
-    plt.show()
+plt.yscale('log')
+plt.xlim(left=0, right=T)
+plt.xlabel('t')
+plt.ylabel('NSE')
+plt.grid(True, which="both")
+plt.legend()
+filename_r = f'compare_PP_r_values_{timestamp}.png'
+plt.savefig(os.path.join(save_path, filename_r))
+plt.show()
 
 #--------------------------
 # Proposed手法: q を変化
 #--------------------------
-if run_pp_q_flag:
-    plt.figure(figsize=(10, 6))
-    for q_val in q_list:
-        label_str = f'PP (r={r_fixed}, q={q_val})'
-        plt.plot(pp_error_for_q[q_val], label=label_str)
+plt.figure(figsize=(10, 6))
+for q_val in q_list:
+    label_str = f'PP (r={r_fixed}, q={q_val})'
+    plt.plot(pp_error_for_q[q_val], label=label_str)
 
-    plt.yscale('log')
-    plt.xlim(left=0, right=T)
-    plt.xlabel('t')
-    plt.ylabel('NSE')
-    plt.grid(True, which="both")
-    plt.legend()
-    filename_q = f'compare_PP_q_values_{timestamp}.png'
-    plt.savefig(os.path.join(save_path, filename_q))
-    plt.show()
+plt.yscale('log')
+plt.xlim(left=0, right=T)
+plt.xlabel('t')
+plt.ylabel('NSE')
+plt.grid(True, which="both")
+plt.legend()
+filename_q = f'compare_PP_q_values_{timestamp}.png'
+plt.savefig(os.path.join(save_path, filename_q))
+plt.show()
 
 #--------------------------
 # スクリプトのバックアップコピー
