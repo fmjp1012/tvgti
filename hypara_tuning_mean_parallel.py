@@ -16,6 +16,18 @@ import optuna  # <-- Import Optuna
 from utils import *
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
+# コマンドライン引数の処理
+if len(sys.argv) != 7:
+    print("Usage: python {} r_fixed q_fixed rho_suggested_low rho_suggested_high mu_lambda_suggested_low mu_lambda_suggested_high".format(os.path.basename(sys.argv[0])))
+    sys.exit(1)
+
+r_fixed = int(sys.argv[1])
+q_fixed = int(sys.argv[2])
+rho_suggested_low = float(sys.argv[3])
+rho_suggested_high = float(sys.argv[4])
+mu_lambda_suggested_low = float(sys.argv[5])
+mu_lambda_suggested_high = float(sys.argv[6])
+
 #----------------------------------------------------
 # プロット設定
 plt.rc('text', usetex=True)
@@ -44,9 +56,6 @@ variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
 K: int = 1
 S_is_symmetric: bool = True
-
-r_fixed = 2
-q_fixed = 1
 
 seed: int = 3
 np.random.seed(seed)
@@ -102,8 +111,8 @@ def objective(trial: optuna.trial.Trial) -> float:
     # ハイパーパラメータのサンプリング（r, q は固定）
     r_suggested = r_fixed
     q_suggested = q_fixed
-    rho_suggested = trial.suggest_float("rho", 1e-6, 0.1, log=False)
-    mu_lambda_suggested = trial.suggest_float("mu_lambda", 1e-6, 1, log=False)
+    rho_suggested = trial.suggest_float("rho", rho_suggested_low, rho_suggested_high, log=False)
+    mu_lambda_suggested = trial.suggest_float("mu_lambda", mu_lambda_suggested_low, mu_lambda_suggested_high, log=False)
 
     n_runs = 5
     # joblib で5回の試行を並列実行

@@ -4,7 +4,7 @@ import datetime
 from typing import List, Tuple, Dict
 
 import numpy as np
-from scipy.linalg import inv, eigvals, norm
+from scipy.linalg import norm
 import matplotlib.pyplot as plt
 import cvxpy as cp
 from tqdm import tqdm
@@ -39,12 +39,12 @@ run_co_flag: bool = False     # Correction Only
 run_sgd_flag: bool = False    # SGD
 # Proposed手法は、rを変化させるシミュレーションとqを変化させるシミュレーションに分割
 run_pp_r_flag: bool = True    # rを変化させるシミュレーションの実行をONにする場合はTrue
-run_pp_q_flag: bool = False    # qを変化させるシミュレーションの実行をONにする場合はTrue
+run_pp_q_flag: bool = False   # qを変化させるシミュレーションの実行をONにする場合はTrue
 
 #----------------------------------------------------
 # パラメータの設定
 N: int = 10
-T: int = 40000
+T: int = 400
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -76,15 +76,15 @@ S_0 = S_0 / norm(S_0)
 
 # --- rを変化させる場合 ---
 r_list = [1, 2, 4, 8, 40]           # 試すrの値
-q_fixed = 1                        # qは固定
+q_fixed = 1                         # qは固定
 rho_list_r = [0.0312, 0.0707, 0.134, 0.237, 1.034]       # rごとのrhoの値（r_listと同じ長さ）
-mu_lambda_list_r = [0.0389, 0.116, 0.0867, 0.041, 0.0154] # rごとのmu_lambdaの値
+mu_lambda_list_r = [0.0389, 0.116, 0.0867, 0.041, 0.0154]  # rごとのmu_lambdaの値
 
 # --- qを変化させる場合 ---
 q_list = [1, 2, 4, 8, 40]            # 試すqの値
 r_fixed = 1                          # rは固定
 rho_list_q = [0.015, 0.0297, 0.0321, 0.0281, 0.069]      # qごとのrhoの値（q_listと同じ長さ）
-mu_lambda_list_q = [0.00857, 0.0305, 0.0264, 0.00939, 1.202] # qごとのmu_lambdaの値
+mu_lambda_list_q = [0.00857, 0.0305, 0.0264, 0.00939, 1.202]  # qごとのmu_lambdaの値
 
 #----------------------------------------------------
 # モデルのインスタンス化（PP手法以外）
@@ -109,7 +109,7 @@ def run_tv_sem_pp(r_val: int, q_val: int, rho_val: float, mu_lambda_val: float) 
 
 #----------------------------------------------------
 # Proposed手法: r を変化させる場合の並列実行
-pp_estimates_for_r = {}  # rごとの推定列を保存
+pp_estimates_for_r = {}  # rごとの推定結果を保存
 if run_pp_r_flag:
     # 並列実行のためのパラメータリスト作成
     params_r = [(r, q_fixed, rho, mu) for r, rho, mu in zip(r_list, rho_list_r, mu_lambda_list_r)]
@@ -120,7 +120,7 @@ if run_pp_r_flag:
 
 #----------------------------------------------------
 # Proposed手法: q を変化させる場合の並列実行
-pp_estimates_for_q = {}  # qごとの推定列を保存
+pp_estimates_for_q = {}  # qごとの推定結果を保存
 if run_pp_q_flag:
     params_q = [(r_fixed, q, rho, mu) for q, rho, mu in zip(q_list, rho_list_q, mu_lambda_list_q)]
     results_q = Parallel(n_jobs=4)(
@@ -129,7 +129,7 @@ if run_pp_q_flag:
     pp_estimates_for_q = {q: result for q, result in zip(q_list, results_q)}
 
 #----------------------------------------------------
-# それぞれの推定結果について、NSE（正規化二乗誤差）を計算する関数
+# 各推定結果について、NSE（正規化二乗誤差）を計算する関数
 def calc_nse_series(estimates_list: List[np.ndarray], true_S_list: List[np.ndarray], S_0_ref: np.ndarray) -> List[float]:
     """
     推定行列リストと真の行列リストから、各時刻 t の
@@ -139,15 +139,27 @@ def calc_nse_series(estimates_list: List[np.ndarray], true_S_list: List[np.ndarr
     for i, estimate in enumerate(estimates_list):
         denom = norm(S_0_ref - true_S_list[i])**2
         numer = norm(estimate - true_S_list[i])**2 if i < len(true_S_list) else norm(estimate - true_S_list[-1])**2
-        if denom < 1e-12:
-            nse_val = 0.0
-        else:
-            nse_val = numer / denom
+        nse_val = numer / denom if denom > 1e-12 else 0.0
         nse_arr.append(nse_val)
     return nse_arr
 
 #----------------------------------------------------
-# r を変化させた Proposed 手法の NSE を計算
+# 並列化された calc_cost_series
+def calc_cost_series(estimates_list: List[np.ndarray], X: np.ndarray) -> List[float]:
+    """
+    各推定行列に対してコスト計算を行う関数の並列実行版。
+    Cost = ||X - S_est @ X||^2
+    """
+    def compute_cost(S_est):
+        return np.linalg.norm(X - S_est @ X)**2
+
+    cost_arr = Parallel(n_jobs=-1)(
+        delayed(compute_cost)(S_est) for S_est in tqdm(estimates_list, desc="Calculating cost series", leave=False)
+    )
+    return cost_arr
+
+#----------------------------------------------------
+# Proposed手法: r を変化させた Proposed 手法の NSE を計算
 pp_error_for_r = {}  # {r_val: [NSE(t=0), NSE(t=1), ...], ...}
 if run_pp_r_flag:
     for r_val in r_list:
@@ -155,12 +167,26 @@ if run_pp_r_flag:
         pp_error_for_r[r_val] = calc_nse_series(estimates_r, S_series, S_0)
 
 #----------------------------------------------------
-# q を変化させた Proposed 手法の NSE を計算
+# Proposed手法: q を変化させた Proposed 手法の NSE を計算
 pp_error_for_q = {}  # {q_val: [NSE(t=0), NSE(t=1), ...], ...}
 if run_pp_q_flag:
     for q_val in q_list:
         estimates_q = pp_estimates_for_q[q_val]
         pp_error_for_q[q_val] = calc_nse_series(estimates_q, S_series, S_0)
+
+#----------------------------------------------------
+# Proposed手法: r を変化させた Proposed 手法のコスト関数の推移を
+# 並列化して計算する
+pp_cost_for_r = {}  # {r_val: [cost(t=0), cost(t=1), ...], ...}
+if run_pp_r_flag:
+    def compute_cost_for_r(r_val):
+        estimates_r = pp_estimates_for_r[r_val]
+        cost_series = calc_cost_series(estimates_r, X)
+        return (r_val, cost_series)
+    results_cost_r = Parallel(n_jobs=-1)(
+        delayed(compute_cost_for_r)(r_val) for r_val in r_list
+    )
+    pp_cost_for_r = {r_val: cost_series for r_val, cost_series in results_cost_r}
 
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 today_str: str = datetime.datetime.now().strftime('%y%m%d')
@@ -168,7 +194,7 @@ save_path: str = f'./result/{today_str}/images'
 os.makedirs(save_path, exist_ok=True)
 
 #--------------------------
-# Proposed手法: r を変化
+# Proposed手法: r を変化（NSEのプロット）
 #--------------------------
 if run_pp_r_flag:
     plt.figure(figsize=(10, 6))
@@ -178,7 +204,7 @@ if run_pp_r_flag:
 
     plt.yscale('log')
     plt.xlim(left=0, right=T)
-    plt.xlabel('t')
+    plt.xlabel('Iteration (t)')
     plt.ylabel('NSE')
     plt.grid(True, which="both")
     plt.legend()
@@ -187,7 +213,7 @@ if run_pp_r_flag:
     plt.show()
 
 #--------------------------
-# Proposed手法: q を変化
+# Proposed手法: q を変化（NSEのプロット）
 #--------------------------
 if run_pp_q_flag:
     plt.figure(figsize=(10, 6))
@@ -197,12 +223,31 @@ if run_pp_q_flag:
 
     plt.yscale('log')
     plt.xlim(left=0, right=T)
-    plt.xlabel('t')
+    plt.xlabel('Iteration (t)')
     plt.ylabel('NSE')
     plt.grid(True, which="both")
     plt.legend()
     filename_q = f'compare_PP_q_values_{timestamp}.png'
     plt.savefig(os.path.join(save_path, filename_q))
+    plt.show()
+
+#--------------------------
+# Proposed手法: r を変化（コスト関数のプロット）
+#--------------------------
+if run_pp_r_flag:
+    plt.figure(figsize=(10, 6))
+    for r_val in r_list:
+        label_str = f'PP (r={r_val}, q={q_fixed})'
+        plt.plot(pp_cost_for_r[r_val], label=label_str)
+
+    plt.yscale('log')
+    plt.xlim(left=0, right=T)
+    plt.xlabel('Iteration')
+    plt.ylabel(r'Cost $\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
+    plt.grid(True, which="both")
+    plt.legend()
+    filename_cost = f'cost_function_PP_r_{timestamp}.png'
+    plt.savefig(os.path.join(save_path, filename_cost))
     plt.show()
 
 #--------------------------
