@@ -80,7 +80,7 @@ S_0 = S_0 / norm(S_0)
 S_offline = solve_offline_sem(X, 0, True)
 S_offline = (S_offline + S_offline.T) / 2  # 対称化
 np.fill_diagonal(S_offline, 0)            # 対角成分ゼロ化
-offline_nse = norm(S_offline - S_series[-1])**2 / norm(S_0 - S_series[-1])**2  if (denom := norm(S_0 - S_series[-1])**2) > 1e-12 else 0.0
+offline_nse = norm(S_offline - S_series[-1])**2 / norm(S_0 - S_series[-1])**2 if (denom := norm(S_0 - S_series[-1])**2) > 1e-12 else 0.0
 offline_cost = norm(X - S_offline @ X)**2
 print("Offline NSE =", offline_nse)
 print("Offline ||X - S*X||^2 =", offline_cost)
@@ -287,6 +287,11 @@ if run_pp_q_flag:
 #--------------------------
 print("オフライン解のコスト関数の値:")
 print(f"Offline cost = {offline_cost}")
+
+# 真の解（S_series[-1]）におけるコスト関数の値を計算して出力
+true_cost = norm(X - S_series[-1] @ X)**2
+print("真の解におけるコスト関数の値:")
+print(f"True cost = {true_cost}")
 
 #--------------------------
 # スクリプトのバックアップコピー
