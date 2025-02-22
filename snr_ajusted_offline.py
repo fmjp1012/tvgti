@@ -181,12 +181,12 @@ if __name__ == "__main__":
 
     # 2枚目 (Target SNR vs. Measured SNR)
     filename_snr: str = (
+        f"timestamp{timestamp}_"
         f"result_snr_vs_snr_"
         f"N{N}_T{T}_"
         f"maxweight{max_weight}_variancee{variance_e}_"
         f"K{K}_Sissymmetric{S_is_symmetric}_"
-        f"seed{seed}_"
-        f"timestamp{timestamp}.png"
+        f"seed{seed}.png"
     )
     plt.figure(figsize=(8, 6))
     plt.plot(snr_values, snr_measured_list, marker="o", label="Measured SNR")

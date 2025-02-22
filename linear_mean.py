@@ -155,6 +155,7 @@ timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 # __file__ が定義されていない場合は適宜ファイル名を指定してください
 notebook_filename = os.path.basename(__file__) if '__file__' in globals() else 'simulation'
 filename = (
+    f'timestamp{timestamp}_'
     f'result_N{N}_'
     f'notebook_filename{notebook_filename}_'
     f'num_trials{num_trials}_'
@@ -173,8 +174,7 @@ filename = (
     f'r{r}_'
     f'q{q}_'
     f'rho{rho}_'
-    f'mu_lambda{mu_lambda}_'
-    f'timestamp{timestamp}.png'
+    f'mu_lambda{mu_lambda}.png'
 )
 
 today_str = datetime.datetime.now().strftime('%y%m%d')

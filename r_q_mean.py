@@ -176,7 +176,7 @@ if run_pp_r_flag:
     plt.ylabel('Average NSE')
     plt.grid(True, which="both")
     plt.legend()
-    filename_r = f'compare_PP_r_values_avg_{timestamp}.png'
+    filename_r = f'timestamp{timestamp}_compare_PP_r_values_avg.png'
     plt.savefig(os.path.join(save_path, filename_r))
     plt.show()
 
@@ -191,7 +191,7 @@ if run_pp_q_flag:
     plt.ylabel('Average NSE')
     plt.grid(True, which="both")
     plt.legend()
-    filename_q = f'compare_PP_q_values_avg_{timestamp}.png'
+    filename_q = f'timestamp{timestamp}_compare_PP_q_values_avg.png'
     plt.savefig(os.path.join(save_path, filename_q))
     plt.show()
 

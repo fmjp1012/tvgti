@@ -197,10 +197,10 @@ plt.legend()
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 notebook_filename: str = os.path.basename(__file__)
 filename: str = (
-    f'result_N{N}_notebook_filename{notebook_filename}_T{T}_maxweight{max_weight}_variancee{variance_e}_K{K}_'
+    f'timestamp{timestamp}_result_N{N}_notebook_filename{notebook_filename}_T{T}_maxweight{max_weight}_variancee{variance_e}_K{K}_'
     f'Sissymmetric{S_is_symmetric}_seed{seed}_P{P}_C{C}_gammma{gamma}_'
     f'alpha{alpha}_betapc{beta_pc}_betaco{beta_co}_betasgd{beta_sgd}_'
-    f'r{r}_q{q}_rho{rho}_mulambda{mu_lambda}_std_S{std_S}_timestamp{timestamp}.png'
+    f'r{r}_q{q}_rho{rho}_mulambda{mu_lambda}_std_S{std_S}.png'
 )
 today_str: str = datetime.datetime.now().strftime('%y%m%d')
 save_path: str = f'./result/{today_str}/images'

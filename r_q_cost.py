@@ -221,7 +221,7 @@ if run_pp_r_flag:
     plt.ylabel('NSE')
     plt.grid(True, which="both")
     plt.legend()
-    filename_r = f'compare_PP_r_values_{timestamp}.png'
+    filename_r = f'timestamp{timestamp}_compare_PP_r_values.png'
     plt.savefig(os.path.join(save_path, filename_r))
     plt.show()
 
@@ -242,7 +242,7 @@ if run_pp_q_flag:
     plt.ylabel('NSE')
     plt.grid(True, which="both")
     plt.legend()
-    filename_q = f'compare_PP_q_values_{timestamp}.png'
+    filename_q = f'timestamp{timestamp}_compare_PP_q_values.png'
     plt.savefig(os.path.join(save_path, filename_q))
     plt.show()
 
@@ -263,7 +263,7 @@ if run_pp_r_flag:
     plt.ylabel(r'Cost $\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
     plt.grid(True, which="both")
     plt.legend()
-    filename_cost = f'cost_function_PP_r_{timestamp}.png'
+    filename_cost = f'timestamp{timestamp}_cost_function_PP_r.png'
     plt.savefig(os.path.join(save_path, filename_cost))
     plt.show()
 

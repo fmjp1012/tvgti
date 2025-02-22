@@ -222,6 +222,7 @@ plt.legend()
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 notebook_filename: str = os.path.basename(__file__) if '__file__' in globals() else 'simulation.py'
 filename_final: str = (
+    f'timestamp{timestamp}_'
     f'result_N{N}_'
     f'{notebook_filename}_'
     f'T{T}_'
@@ -240,8 +241,7 @@ filename_final: str = (
     f'r{r}_'
     f'q{q}_'
     f'rho{rho}_'
-    f'mu_lambda{mu_lambda}_'
-    f'timestamp{timestamp}.png'
+    f'mu_lambda{mu_lambda}.png'
 )
 
 save_path_final: str = os.path.join('.', 'result', today_str, 'images')

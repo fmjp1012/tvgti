@@ -134,6 +134,7 @@ plt.legend()
 timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 notebook_filename: str = os.path.basename(__file__)
 filename: str = (
+    f'timestamp{timestamp}_'
     f'result_N{N}_'
     f'{notebook_filename}_'
     f'T{T}_'
@@ -146,8 +147,7 @@ filename: str = (
     f'r_pp{r_pp}_{r_pp_nonoverlap}_'
     f'q_pp{q_pp}_{q_pp_nonoverlap}_'
     f'rho_pp{rho_pp}_{rho_pp_nonoverlap}_'
-    f'mu_lambda_pp{mu_lambda_pp}_{mu_lambda_pp_nonoverlap}_'
-    f'timestamp{timestamp}.png'
+    f'mu_lambda_pp{mu_lambda_pp}_{mu_lambda_pp_nonoverlap}.png'
 )
 
 today_str: str = datetime.datetime.now().strftime('%y%m%d')

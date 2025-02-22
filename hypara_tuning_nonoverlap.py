@@ -176,6 +176,7 @@ timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 notebook_filename: str = os.path.basename(__file__)
 
 filename: str = (
+    f'timestamp{timestamp}_'
     f'result_N{N}_'
     f'notebook_filename{notebook_filename}_'
     # f'T{T}_'
@@ -187,8 +188,7 @@ filename: str = (
     f'r{best_r}_'
     f'q{best_q}_'
     f'rho{best_rho}_'
-    f'mu_lambda{best_mu_lambda}_'
-    f'timestamp{timestamp}.png'
+    f'mu_lambda{best_mu_lambda}.png'
 )
 
 print(filename)
