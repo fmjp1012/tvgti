@@ -260,7 +260,7 @@ if run_pp_r_flag:
     plt.yscale('log')
     plt.xlim(left=0, right=T)
     plt.xlabel('Iteration')
-    plt.ylabel(r'Cost $\frac{1}{2T}\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
+    plt.ylabel(r'Cost $\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
     plt.grid(True, which="both")
     plt.legend()
     filename_cost = f'timestamp{timestamp}_cost_function_PP_r.png'
