@@ -268,6 +268,27 @@ if run_pp_r_flag:
     plt.show()
 
 #--------------------------
+# 最終的なコスト関数の値を出力
+#--------------------------
+if run_pp_r_flag:
+    print("最終的な Proposed 手法 (r 変化時) のコスト関数の値:")
+    for r_val in r_list:
+        final_cost = pp_cost_for_r[r_val][-1]
+        print(f"r = {r_val}: 最終コスト = {final_cost}")
+
+if run_pp_q_flag:
+    print("最終的な Proposed 手法 (q 変化時) のコスト関数の値:")
+    for q_val in q_list:
+        final_cost = pp_cost_for_q[q_val][-1]
+        print(f"q = {q_val}: 最終コスト = {final_cost}")
+
+#--------------------------
+# オフライン解のコスト関数の値を出力
+#--------------------------
+print("オフライン解のコスト関数の値:")
+print(f"Offline cost = {offline_cost}")
+
+#--------------------------
 # スクリプトのバックアップコピー
 #--------------------------
 notebook_filename: str = os.path.basename(__file__)
