@@ -92,6 +92,7 @@ n_splits = 10
 offline_solutions_list = []
 offline_nses_list = []
 offline_costs_list = []
+true_costs_list = []  # 追加：真の解によるコスト推移を格納
 
 print("部分データを用いたオフライン解の評価:")
 for i in range(1, n_splits + 1):
@@ -105,7 +106,7 @@ for i in range(1, n_splits + 1):
     np.fill_diagonal(S_offline_partial, 0)  # 対角成分ゼロ化
     offline_solutions_list.append(S_offline_partial)
     
-    # 部分データにおけるコスト計算
+    # 部分データにおけるオフライン解のコスト計算
     cost_partial = (1/(2*T_partial)) * norm(X_partial - S_offline_partial @ X_partial)**2
     offline_costs_list.append(cost_partial)
     
@@ -114,7 +115,11 @@ for i in range(1, n_splits + 1):
     nse_partial = norm(S_offline_partial - S_series[-1])**2 / denom if denom > 1e-12 else 0.0
     offline_nses_list.append(nse_partial)
     
-    print(f"  データ数 {T_partial} 個: Offline NSE = {nse_partial:.4e}, Offline cost = {cost_partial:.4e}")
+    # 追加：部分データにおける真の解（S_series[-1]）のコスト計算
+    true_cost_partial = (1/(2*T_partial)) * norm(X_partial - S_series[-1] @ X_partial)**2
+    true_costs_list.append(true_cost_partial)
+    
+    print(f"  データ数 {T_partial} 個: Offline NSE = {nse_partial:.4e}, Offline cost = {cost_partial:.4e}, True cost = {true_cost_partial:.4e}")
 
 # 部分データにおけるOffline NSE, Costの推移をプロット（ここでは後で全体比較用に利用）
 data_counts = [int(i * T / n_splits) for i in range(1, n_splits + 1)]
@@ -362,8 +367,12 @@ if run_pp_r_flag:
     for r_val in r_list:
         plt.plot(range(len(pp_cost_for_r[r_val])), pp_cost_for_r[r_val], 
                  label=f'PP (r={r_val}, q={q_fixed})')
+# 追加：真の解によるコスト関数の推移のプロット（部分データ評価）
+plt.plot(data_counts, true_costs_list, marker='o', color='b', linestyle='--', 
+         label='True solution (partial data)')
+
 plt.yscale('log')
-plt.xlim(0, T)
+plt.xlim(left=0, right=T)
 plt.xlabel('Iteration / Data count')
 plt.ylabel(r'Cost $\frac{1}{2T}\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
 plt.grid(True, which='both')
