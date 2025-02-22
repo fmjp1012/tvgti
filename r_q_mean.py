@@ -63,8 +63,8 @@ beta_sgd: float = 0.02
 # Proposed手法のパラメータ（rを変化させる場合）
 r_list = [1, 2, 4, 8, 40]             # 試すrの値
 q_fixed = 1                           # qは固定
-rho_list_r = [0.0312, 0.0707, 0.134, 0.237, 1.034]       # rごとのrhoの値（r_listと同じ長さ）
-mu_lambda_list_r = [0.0389, 0.116, 0.0867, 0.041, 0.0154]  # rごとのmu_lambdaの値
+rho_list_r = [0.0312, 0.0707, 0.149, 0.224, 1.09]       # rごとのrhoの値（r_listと同じ長さ）
+mu_lambda_list_r = [0.0389, 0.116, 0.247, 0.014, 0.0365] # rごとのmu_lambdaの値
 
 # Proposed手法（qを変化させる場合）のパラメータ
 q_list = [1, 2, 4, 8, 40]
