@@ -216,7 +216,7 @@ def project_to_zero_diagonal_symmetric(matrix):
     np.fill_diagonal(symmetric_matrix, 0)
     return symmetric_matrix
 
-def solve_offline_sem(X_up_to_t: np.ndarray, lambda_reg: float) -> np.ndarray:
+def solve_offline_sem(X_up_to_t: np.ndarray, lambda_reg: float, solver_verbose=False) -> np.ndarray:
     N, t = X_up_to_t.shape
     S = cp.Variable((N, N), symmetric=True)
     
@@ -227,7 +227,7 @@ def solve_offline_sem(X_up_to_t: np.ndarray, lambda_reg: float) -> np.ndarray:
     
     prob = cp.Problem(cp.Minimize(objective), constraints)
     
-    prob.solve(solver=cp.SCS, verbose=False)
+    prob.solve(solver=cp.SCS, verbose=solver_verbose)
     
     if prob.status not in ["optimal", "optimal_inaccurate"]:
         raise ValueError("CVXPY did not find an optimal solution.")
