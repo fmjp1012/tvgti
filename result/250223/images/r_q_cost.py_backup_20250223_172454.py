@@ -44,8 +44,8 @@ run_pp_q_flag: bool = False   # qを変化させるシミュレーションの�
 #----------------------------------------------------
 # パラメータの設定
 N: int = 10
-T: int = 40000
-sparsity: float = 0.9
+T: int = 10000
+sparsity: float = 0.8
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
