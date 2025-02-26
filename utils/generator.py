@@ -36,6 +36,12 @@ def generate_regular_S(
     sparsity: float,
     max_weight: float
 ) -> np.ndarray:
+    """
+    正則グラフに基づいて S を生成するサンプル実装.
+    ここでは，無向 d-正則グラフを生成し，対応する隣接行列に
+    [-max_weight, max_weight] の重みを付与したものを返す.
+    （常に対称行列となる）
+    """
     # 1行のオフダイアゴナル成分のうち，ゼロとする個数
     k = int(round((N - 1) * sparsity))
     # 非ゼロにする個数（すなわち次数）
@@ -58,9 +64,6 @@ def generate_regular_S(
     # 対角成分は必ず0に
     np.fill_diagonal(S, 0)
 
-    # もし S_is_symmetric が False だった場合も，要求仕様では対称行列となるので
-    # ここでは S_is_symmetric の値に関わらず対称性を保持する．
-
     # スペクトル半径（最大固有値の絶対値）が1以上なら縮小
     spectral_radius = max(abs(eigvals(S)))
     if spectral_radius >= 1:
@@ -76,13 +79,21 @@ def generate_piecewise_X_K(
         sparsity: float,
         max_weight: float,
         std_e: float,
-        K: int
+        K: int,
+        s_type: str = "random"  # "random" または "regular"
 ) -> Tuple[List[np.ndarray], np.ndarray]:
+    """
+    K 個のセグメントに分割して X を生成する.
+    各セグメントで用いる S は s_type に応じて生成される．
+    """
     S_list = []
     inv_I_S_list = []
     I = np.eye(N)
     for i in range(K):
-        S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+        if s_type == "regular":
+            S = generate_regular_S(N, sparsity, max_weight)
+        else:
+            S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
         S_list.append(S)
         inv_I_S_list.append(inv(I - S))
     # Divide T into K segments
@@ -143,8 +154,14 @@ def generate_piecewise_X_K_with_snr(
     K: int,
     snr_target: float,
     tol: float = 1e-6,
-    max_iter: int = 100
+    max_iter: int = 100,
+    s_type: str = "random"
 ) -> Tuple[List[np.ndarray], np.ndarray]:
+    """
+    SNR をターゲットにしてスケーリングした S を用いて，
+    K 個のセグメントで X を生成する.
+    S の生成は s_type に応じて行われる．
+    """
     S_list = []
     inv_I_S_list = []
     I = np.eye(N)
@@ -152,8 +169,11 @@ def generate_piecewise_X_K_with_snr(
     # 1) Generate K random S and scale each to snr_target
     for i in range(K):
         # Generate a base random S
-        S_raw = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
-        # Scale it to achieve the target SNR
+        if s_type == "regular":
+            S_raw = generate_regular_S(N, sparsity, max_weight)
+        else:
+            S_raw = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+        # scale_S_for_target_snr は utils に定義されている前提
         S_scaled = scale_S_for_target_snr(S_raw, snr_target)
         S_list.append(S_scaled)
         inv_I_S_list.append(np.linalg.inv(I - S_scaled))
@@ -191,26 +211,27 @@ def generate_brownian_piecewise_X_K(
     max_weight: float,
     std_e: float,
     K: int,
-    std_S: float  # ← 追加: S をランダムに「揺らす」強度
+    std_S: float,  # S の「揺らす」強度
+    s_type: str = "random"
 ):
     """
-    K 回に分けて S を生成し、それぞれの区間で X を生成する関数.
-    今回は S を「全くのランダム」ではなく，前の S に
-    ガウスノイズを加える形でランダム運動させる.
+    S を前の値にノイズを加える形で Brownian motion のように更新し，
+    K 回に分けた区間ごとに X を生成する関数．
+    初回の S は s_type に応じた方法で生成される．
     """
-    
-    # ============== S の生成 ==============
     S_list = []
     inv_I_S_list = []
     I = np.eye(N)
     
-    # まず最初の S は従来どおりランダムに生成
-    S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
-    
+    # 初回 S の生成
+    if s_type == "regular":
+        S = generate_regular_S(N, sparsity, max_weight)
+    else:
+        S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     S_list.append(S)
     inv_I_S_list.append(inv(I - S))
     
-    # 2回目以降は，前の S にノイズを加える形で生成
+    # 2回目以降は前の S にノイズを加える
     for i in range(1, K):
         S_prev = S_list[-1]
         S_new = update_S(
@@ -222,19 +243,19 @@ def generate_brownian_piecewise_X_K(
         S_list.append(S_new)
         inv_I_S_list.append(inv(I - S_new))
     
-    # ============== 時系列 T を K 区間に分割 ==============
+    # T を K 区間に分割
     segment_lengths = [T // K] * K
-    segment_lengths[-1] += T % K  # 端数を最後の区間に足す
+    segment_lengths[-1] += T % K
     
-    # ============== S_series (時系列ごとの S ) ==============
+    # 各時刻 t ごとの S を用意
     S_series = []
     for i, length in enumerate(segment_lengths):
         S_series.extend([S_list[i]] * length)
     
-    # ============== e (外生ショック) の生成 ==============
+    # 外生ショックの生成
     e_t_series = np.random.normal(0, std_e, size=(N, T))
     
-    # ============== X の計算 ==============
+    # X の計算
     X_list = []
     start = 0
     for i, length in enumerate(segment_lengths):
@@ -253,25 +274,25 @@ def generate_linear_X(
     S_is_symmetric: bool,
     sparsity: float,
     max_weight: float,
-    std_e: float
+    std_e: float,
+    s_type: str = "random"
 ) -> Tuple[List[np.ndarray], np.ndarray]:
     """
-    - 最初にランダム行列 S_start と S_end を生成し，
-    - t=0 から t=T-1 まで線形に補間した S(t) を用いて，
-      X(t) = (I - S(t))^-1 * e(t)
-    でサンプルを生成するメモリレスSEMの関数．
-
-    返り値:
-      S_series: t=0 から t=T-1 までの S(t) を格納したリスト (長さ T)
-      X       : 観測データ (N x T)
+    t=0 から t=T-1 まで，線形補間した S(t) を用いて
+    X(t) = (I - S(t))^-1 * e(t) を生成する.
+    S_start, S_end の生成に s_type を利用する．
     """
     I = np.eye(N)
 
-    # 1. 2つの行列をランダム生成
-    S_start = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
-    S_end   = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+    # 2つの行列を生成
+    if s_type == "regular":
+        S_start = generate_regular_S(N, sparsity, max_weight)
+        S_end   = generate_regular_S(N, sparsity, max_weight)
+    else:
+        S_start = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+        S_end   = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     
-    # 2. スペクトル半径をチェック → 1未満に抑える
+    # スペクトル半径のチェックと調整
     def spectral_radius(A: np.ndarray) -> float:
         return max(abs(eigvals(A)))
     
@@ -279,48 +300,29 @@ def generate_linear_X(
     rho_end   = spectral_radius(S_end)
     rho_max   = max(rho_start, rho_end)
     
-    # もしスペクトル半径が1を超えているなら0.99に押さえ込む
     if rho_max >= 1.0:
         alpha = 0.99 / rho_max
         S_start *= alpha
         S_end   *= alpha
     
-    # 念のため再度チェック (必ず < 1 になっているはず)
-    # ここでさらに厳密に <1 であるか確認したい場合は適宜 assert 等しても良い
-    # print("rho_start =", spectral_radius(S_start))
-    # print("rho_end   =", spectral_radius(S_end))
-
-    # 3. 時刻 t=0..T-1 で線形補間した S(t) をリストに格納
     S_series = []
     inv_I_S_list = []
     for t in range(T):
-        if T == 1:
-            lam = 0.0
-        else:
-            lam = t / (T - 1)  # 0 から 1 まで
-        
-        # 線形補間
+        lam = 0.0 if T == 1 else t / (T - 1)
         S_t = (1.0 - lam) * S_start + lam * S_end
-        
-        # ここでも「スペクトル半径 < 1」を保障したい場合は，
-        # S_start, S_end がともに <1 なら凸結合 S(t) も <1 になります
-        # （スペクトル半径はサブアディティブなので）
-        
         S_series.append(S_t)
         inv_I_S_list.append(np.linalg.inv(I - S_t))
-
-    # 4. 外生ショック e(t) の生成
+    
+    # 外生ショックの生成
     e_t_series = np.random.normal(0, std_e, size=(N, T))
     
-    # 5. X(t) = (I - S(t))^-1 e(t) をまとめて生成
+    # X(t) の計算
     X_list = []
     for t in range(T):
         x_t = inv_I_S_list[t] @ e_t_series[:, t]
         X_list.append(x_t.reshape(N, 1))
-
-    # shape を (N, T) に整形
-    X = np.concatenate(X_list, axis=1)
     
+    X = np.concatenate(X_list, axis=1)
     return S_series, X
 
 def generate_linear_X_L(
@@ -330,45 +332,37 @@ def generate_linear_X_L(
     S_is_symmetric: bool,
     sparsity: float,
     max_weight: float,
-    std_e: float
+    std_e: float,
+    s_type: str = "random"
 ) -> Tuple[List[np.ndarray], np.ndarray]:
     """
-    - まず L 個のランダムな隣接行列 S_0, S_1, ..., S_{L-1} を生成する．
-    - 時刻 t=0 から t=T-1 まで，global_lambda = t/(T-1) を用いて
-      セグメント index = floor(global_lambda*(L-1)) と local_lambda を計算し，
-      S(t) = (1 - local_lambda)*S_segment + local_lambda * S_{segment+1} として
-      線形補完を行う．（ただし t=T-1 の場合は S_{L-1} を採用）
-    - 各時刻 t で，X(t) = (I - S(t))^{-1} e(t) として外生ショック e(t) から
-      観測データ X を生成する．
-    
-    返り値:
-      S_series: 時刻 t=0,...,T-1 における S(t) を格納したリスト (長さ T)
-      X       : 観測データ (N x T)
+    L 個の S 点を生成し，その間を線形補間して
+    S(t) = (I - S(t))^{-1} e(t) により X を生成する.
+    S の生成は s_type に従って行われる．
     """
     # L 個の S を生成
-    S_points = [generate_random_S(N, sparsity, max_weight, S_is_symmetric) for _ in range(L)]
+    if s_type == "regular":
+        S_points = [generate_regular_S(N, sparsity, max_weight) for _ in range(L)]
+    else:
+        S_points = [generate_random_S(N, sparsity, max_weight, S_is_symmetric) for _ in range(L)]
     
     S_series = []
     I = np.eye(N)
     
     for t in range(T):
         if T == 1:
-            # 特殊ケース: T==1 の場合は最初の S を採用
             S_t = S_points[0]
         else:
             global_lambda = t / (T - 1)
-            # t=T-1 で global_lambda==1 になると segment_index==L-1となるので，
-            # 補完せずに最終値を採用する
             if global_lambda >= 1.0:
                 S_t = S_points[-1]
             else:
-                # 補完するセグメントを決定
                 segment = int(global_lambda * (L - 1))
                 local_lambda = (global_lambda * (L - 1)) - segment
                 S_t = (1.0 - local_lambda) * S_points[segment] + local_lambda * S_points[segment + 1]
         S_series.append(S_t)
     
-    # 各時刻 t ごとに (I - S(t)) の逆行列を計算し，外生ショックから X を生成
+    # 各時刻 t における X(t) の生成
     e_t_series = np.random.normal(0, std_e, size=(N, T))
     X_list = []
     for t in range(T):
