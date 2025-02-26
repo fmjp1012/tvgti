@@ -83,6 +83,12 @@ class TimeVaryingSEM:
             s_corr = s_corr - self.beta * self.grad
         
         self.s = s_corr
+
+    def f(self):
+        term1 = 0.5 * self.s.T @ self.Q_t @ self.s
+        term2 = -2 * self.s.T @ self.sigma_t
+        term3 = 0.5 * self.tr_sigma_t
+        return term1 + term2 + term3
     
     def run(self, X):
         estimates = []
@@ -121,5 +127,6 @@ class TimeVaryingSEM:
             self.S = S_matrix
             
             estimates.append(self.S.copy())
+            cost_values.append(self.f())
         
-        return estimates
+        return estimates, cost_values
