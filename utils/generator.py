@@ -1,6 +1,7 @@
 from typing import List, Tuple, Dict
 
 import numpy as np
+import networkx as nx
 from scipy.linalg import inv, eigvals, norm
 
 from utils import *
@@ -27,6 +28,44 @@ def generate_random_S(
     spectral_radius = max(abs(eigvals(S)))
     if spectral_radius >= 1:
         S = S / (spectral_radius + 0.1)
+    S = S / norm(S)
+    return S
+
+def generate_regular_S(
+    N: int,
+    sparsity: float,
+    max_weight: float
+) -> np.ndarray:
+    # 1行のオフダイアゴナル成分のうち，ゼロとする個数
+    k = int(round((N - 1) * sparsity))
+    # 非ゼロにする個数（すなわち次数）
+    d = (N - 1) - k
+
+    # d正則グラフの場合，全ノードの次数の和は偶数である必要があるためチェック
+    if (N * d) % 2 != 0:
+        # 和が奇数になる場合は d を 1 減らし調整（それに伴い k も変わる）
+        d -= 1
+        k = (N - 1) - d
+
+    # ランダムな d-正則グラフを生成 (無向グラフなので対称性が保証される)
+    G = nx.random_regular_graph(d, N)
+    A = nx.to_numpy_array(G)
+
+    # A の1の箇所に対して重みを割り当てる．重みは [-max_weight, max_weight] の一様乱数．
+    weights = np.random.uniform(-max_weight, max_weight, size=(N, N))
+    S = A * weights
+
+    # 対角成分は必ず0に
+    np.fill_diagonal(S, 0)
+
+    # もし S_is_symmetric が False だった場合も，要求仕様では対称行列となるので
+    # ここでは S_is_symmetric の値に関わらず対称性を保持する．
+
+    # スペクトル半径（最大固有値の絶対値）が1以上なら縮小
+    spectral_radius = max(abs(eigvals(S)))
+    if spectral_radius >= 1:
+        S = S / (spectral_radius + 0.1)
+    # ノルム正規化
     S = S / norm(S)
     return S
 
