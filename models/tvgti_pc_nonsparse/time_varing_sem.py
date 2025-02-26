@@ -3,7 +3,7 @@ from tqdm import tqdm
 from utils import elimination_matrix_hh, duplication_matrix_hh
 
 class TimeVaryingSEM:
-    def __init__(self, N, S_0, alpha, beta, gamma, P, C, show_progress=True, name = "pc_nonsparse"):
+    def __init__(self, N, S_0, alpha, beta, gamma, P, C, show_progress=True, name="pc_nonsparse"):
         self.N = N
         self.alpha = alpha
         self.beta = beta
