@@ -226,7 +226,7 @@ notebook_filename: str = os.path.basename(__file__)
 filename: str = (
     f'timestamp{timestamp}_'
     f'result_N{N}_'
-    f'filename{notebook_filename}_'
+    f'notebook_filename{notebook_filename}_'
     f'T{T}_'
     f'maxweight{max_weight}_'
     f'variancee{variance_e}_'
