@@ -37,15 +37,15 @@ plt.rcParams["font.size"] = 15                       #フォントの大きさ
 run_pc_flag: bool = False     # Prediction Correction
 run_co_flag: bool = False     # Correction Only
 run_sgd_flag: bool = True    # SGD
-run_pp_flag: bool = False     # Proposed
+run_pp_flag: bool = True     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
 N: int = 10
 T: int = 100000
-sparsity: float = 0.8
+sparsity: float = 0.6
 max_weight: float = 0.5
-variance_e: float = 0.0005
+variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
 K: int = 1
 S_is_symmetric: bool = True
@@ -65,11 +65,11 @@ C: int = 1
 gamma: float = 0.999
 lambda_reg_pc = 0.1
 lambda_reg_co = 0.1
-lambda_reg_sgd = 1e-2
+lambda_reg_sgd = 0.1
 alpha: float = 0.02
 beta_pc: float = 0.02
 beta_co: float = 0.02
-beta_sgd: float = 0.103
+beta_sgd: float = 0.0269
 
 # 初期値の設定
 S_0: np.ndarray = generate_regular_S(N, sparsity, max_weight)
@@ -150,26 +150,6 @@ if run_pp_flag:
     # すでに idx_result が並列実行数に達したらこの後は不要
     # （ただし if run_pp_flag: の条件内なので安全）
     idx_result += 1
-
-# 真のSと最終の推定のSを表示
-print("\n真のS（最終時刻）:")
-print(S_series[-1])
-
-if run_pc_flag:
-    print("\nPC法による最終推定S:")
-    print(estimates_pc[-1])
-
-if run_co_flag:
-    print("\nCO法による最終推定S:")
-    print(estimates_co[-1])
-
-if run_sgd_flag:
-    print("\nSGD法による最終推定S:")
-    print(estimates_sgd[-1])
-
-if run_pp_flag:
-    print("\n提案手法による最終推定S:")
-    print(estimates_pp[-1])
 
 # ここから結果の解析・可視化
 # （実行したメソッドだけ処理をする）

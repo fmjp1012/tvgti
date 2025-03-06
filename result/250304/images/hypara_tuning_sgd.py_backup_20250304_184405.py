@@ -37,9 +37,9 @@ plt.rcParams["font.size"] = 15
 # パラメータの設定
 N: int = 10
 T: int = 10000
-sparsity: float = 0.8
+sparsity: float = 0.6
 max_weight: float = 0.5
-variance_e: float = 0.0005
+variance_e: float = 0.05
 std_e: float = np.sqrt(variance_e)
 K: int = 1
 S_is_symmetric: bool = True
@@ -84,8 +84,8 @@ def objective(trial: optuna.trial.Trial) -> float:
     """
     # 1) ハイパーパラメータのサンプリング
     #    αとβₚ𝚌を対数スケールでサンプリング
-    beta_sgd_suggested = trial.suggest_float("beta_sgd", 1e-4, 3)
-    lambda_sgd_suggested = trial.suggest_float("lambda_sgd", 1e-4, 1)
+    beta_sgd_suggested = trial.suggest_float("beta_sgd", 1e-6, 3, log=True)
+    lambda_sgd_suggested = trial.suggest_float("lambda_sgd", 1e-6, 10, log=True)
 
     # 2) モデルを作成して実行
     estimates_sgd = run_tv_sem_sgd(beta_sgd=beta_sgd_suggested, lambda_sgd=lambda_sgd_suggested)
