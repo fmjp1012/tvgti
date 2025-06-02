@@ -13,6 +13,7 @@ from typing import List, Tuple, Dict
 import numpy as np
 from scipy.linalg import inv, eigvals, norm
 import matplotlib.pyplot as plt
+import seaborn as sns
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from multiprocessing import Manager
@@ -271,44 +272,52 @@ if num_methods > 0:
     
     # 真の隣接行列
     ax = axes.flat[plot_idx] if total_plots > 1 else axes[plot_idx]
-    im = ax.imshow(true_S, cmap='viridis', aspect='equal')
+    sns.heatmap(true_S, ax=ax, cmap='RdBu_r', center=0, 
+                cbar=True, square=True, linewidths=0.1)
     ax.set_title('True Adjacency Matrix')
-    # 軸の目盛りを設定
-    # カラーバーを追加
-    plt.colorbar(im, ax=ax)
+    ax.set_xlabel('Node')
+    ax.set_ylabel('Node')
     plot_idx += 1
     
     # 各手法の推定結果
     if run_pc_flag and len(estimates_pc) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_pc[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        sns.heatmap(estimated_S, ax=ax, cmap='RdBu_r', center=0,
+                    cbar=True, square=True, linewidths=0.1)
         ax.set_title('PC Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
         plot_idx += 1
     
     if run_co_flag and len(estimates_co) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_co[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        sns.heatmap(estimated_S, ax=ax, cmap='RdBu_r', center=0,
+                    cbar=True, square=True, linewidths=0.1)
         ax.set_title('CO Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
         plot_idx += 1
     
     if run_sgd_flag and len(estimates_sgd) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_sgd[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        sns.heatmap(estimated_S, ax=ax, cmap='RdBu_r', center=0,
+                    cbar=True, square=True, linewidths=0.1)
         ax.set_title('SGD Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
         plot_idx += 1
     
     if run_pp_flag and len(estimates_pp) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_pp[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        sns.heatmap(estimated_S, ax=ax, cmap='RdBu_r', center=0,
+                    cbar=True, square=True, linewidths=0.1)
         ax.set_title('PP Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
         plot_idx += 1
     
     # 未使用のサブプロットを非表示

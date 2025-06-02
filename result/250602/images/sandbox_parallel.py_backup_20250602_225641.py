@@ -271,44 +271,54 @@ if num_methods > 0:
     
     # 真の隣接行列
     ax = axes.flat[plot_idx] if total_plots > 1 else axes[plot_idx]
-    im = ax.imshow(true_S, cmap='viridis', aspect='equal')
+    im = ax.imshow(true_S, cmap='RdBu_r', vmin=-np.abs(true_S).max(), vmax=np.abs(true_S).max(), aspect='equal')
     ax.set_title('True Adjacency Matrix')
+    ax.set_xlabel('Node')
+    ax.set_ylabel('Node')
     # 軸の目盛りを設定
     # カラーバーを追加
-    plt.colorbar(im, ax=ax)
+    fig.colorbar(im, ax=ax, shrink=0.8)
     plot_idx += 1
     
     # 各手法の推定結果
     if run_pc_flag and len(estimates_pc) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_pc[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        im = ax.imshow(estimated_S, cmap='RdBu_r', vmin=-np.abs(estimated_S).max(), vmax=np.abs(estimated_S).max(), aspect='equal')
         ax.set_title('PC Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
+        fig.colorbar(im, ax=ax, shrink=0.8)
         plot_idx += 1
     
     if run_co_flag and len(estimates_co) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_co[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        im = ax.imshow(estimated_S, cmap='RdBu_r', vmin=-np.abs(estimated_S).max(), vmax=np.abs(estimated_S).max(), aspect='equal')
         ax.set_title('CO Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
+        fig.colorbar(im, ax=ax, shrink=0.8)
         plot_idx += 1
     
     if run_sgd_flag and len(estimates_sgd) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_sgd[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        im = ax.imshow(estimated_S, cmap='RdBu_r', vmin=-np.abs(estimated_S).max(), vmax=np.abs(estimated_S).max(), aspect='equal')
         ax.set_title('SGD Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
+        fig.colorbar(im, ax=ax, shrink=0.8)
         plot_idx += 1
     
     if run_pp_flag and len(estimates_pp) > 0:
         ax = axes.flat[plot_idx]
         estimated_S = estimates_pp[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
+        im = ax.imshow(estimated_S, cmap='RdBu_r', vmin=-np.abs(estimated_S).max(), vmax=np.abs(estimated_S).max(), aspect='equal')
         ax.set_title('PP Estimated Matrix')
-        plt.colorbar(im, ax=ax)
+        ax.set_xlabel('Node')
+        ax.set_ylabel('Node')
+        fig.colorbar(im, ax=ax, shrink=0.8)
         plot_idx += 1
     
     # 未使用のサブプロットを非表示

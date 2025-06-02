@@ -47,7 +47,7 @@ run_pp_flag: bool = True     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 10
+N: int = 30
 T: int = 10000
 sparsity: float = 0.5  # sparse version uses non-zero sparsity
 max_weight: float = 0.5
@@ -246,83 +246,6 @@ save_path: str = f'./result/{today_str}/images'
 os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
-
-# ヒートマップ比較の追加
-# 最終時点での真の隣接行列と推定結果を比較
-final_time_idx = T - 1
-true_S = S_series[final_time_idx]
-
-# 実行された手法の数を数える
-num_methods = sum([run_pc_flag, run_co_flag, run_sgd_flag, run_pp_flag])
-
-if num_methods > 0:
-    # サブプロット数を決定（真の行列 + 実行された手法数）
-    total_plots = num_methods + 1
-    cols = min(total_plots, 3)  # 最大3列
-    rows = (total_plots + cols - 1) // cols  # 必要な行数
-    
-    fig, axes = plt.subplots(rows, cols, figsize=(5*cols, 4*rows))
-    if total_plots == 1:
-        axes = [axes]
-    elif rows == 1:
-        axes = axes.reshape(1, -1)
-    
-    plot_idx = 0
-    
-    # 真の隣接行列
-    ax = axes.flat[plot_idx] if total_plots > 1 else axes[plot_idx]
-    im = ax.imshow(true_S, cmap='viridis', aspect='equal')
-    ax.set_title('True Adjacency Matrix')
-    # 軸の目盛りを設定
-    # カラーバーを追加
-    plt.colorbar(im, ax=ax)
-    plot_idx += 1
-    
-    # 各手法の推定結果
-    if run_pc_flag and len(estimates_pc) > 0:
-        ax = axes.flat[plot_idx]
-        estimated_S = estimates_pc[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
-        ax.set_title('PC Estimated Matrix')
-        plt.colorbar(im, ax=ax)
-        plot_idx += 1
-    
-    if run_co_flag and len(estimates_co) > 0:
-        ax = axes.flat[plot_idx]
-        estimated_S = estimates_co[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
-        ax.set_title('CO Estimated Matrix')
-        plt.colorbar(im, ax=ax)
-        plot_idx += 1
-    
-    if run_sgd_flag and len(estimates_sgd) > 0:
-        ax = axes.flat[plot_idx]
-        estimated_S = estimates_sgd[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
-        ax.set_title('SGD Estimated Matrix')
-        plt.colorbar(im, ax=ax)
-        plot_idx += 1
-    
-    if run_pp_flag and len(estimates_pp) > 0:
-        ax = axes.flat[plot_idx]
-        estimated_S = estimates_pp[final_time_idx]
-        im = ax.imshow(estimated_S, cmap='viridis', aspect='equal')
-        ax.set_title('PP Estimated Matrix')
-        plt.colorbar(im, ax=ax)
-        plot_idx += 1
-    
-    # 未使用のサブプロットを非表示
-    for i in range(plot_idx, len(axes.flat)):
-        axes.flat[i].set_visible(False)
-    
-    plt.tight_layout()
-    
-    # ヒートマップのファイル名
-    heatmap_filename = filename.replace('.png', '_heatmap.png')
-    plt.savefig(os.path.join(save_path, heatmap_filename))
-    plt.show()
-    
-    print(f"Heatmap saved as: {heatmap_filename}")
 
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
 
