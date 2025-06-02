@@ -1,5 +1,12 @@
-import datetime
+import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import datetime
 import shutil
 import numpy as np
 from scipy.linalg import norm
@@ -33,12 +40,12 @@ plt.rcParams["ytick.minor.size"] = 5
 plt.rcParams["font.size"] = 15
 # ----------------------------
 
-# 試行回数（例：100回）
-num_trials = 100
+# 試行回数（例：10回に変更）
+num_trials = 10  # 100 -> 10に変更
 
 # --- シミュレーションパラメータ ---
-N = 10
-T = 10000
+N = 5  # 10 -> 5に変更
+T = 100  # 10000 -> 100に変更
 sparsity = 0.0
 max_weight = 0.5
 variance_e = 0.005
@@ -185,5 +192,5 @@ plt.show()
 
 # ノートブック（またはスクリプト）のバックアップコピーを保存
 copy_ipynb_path = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)  # notebook_filename -> __file__に変更
 print(f"Notebook file copied to: {copy_ipynb_path}")

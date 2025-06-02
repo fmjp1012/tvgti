@@ -1,6 +1,12 @@
 import shutil
 import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 import datetime
 from typing import List, Tuple, Dict
 
@@ -35,8 +41,8 @@ plt.rcParams["ytick.minor.size"] = 5
 plt.rcParams["font.size"] = 15
 
 # パラメータの設定
-N: int = 30
-T: int = 3000
+N: int = 5
+T: int = 100
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -98,7 +104,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 # Optuna で探索
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=100)  # お好みでトライアル数を設定
+study.optimize(objective, n_trials=10)  # 100 -> 10に変更
 
 print("Study best trial:")
 best_trial = study.best_trial

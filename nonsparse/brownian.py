@@ -1,5 +1,12 @@
-import shutil
+import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Tuple, Dict
 
@@ -41,13 +48,13 @@ run_pp_flag: bool = True     # Proposed
 # ----------------------------------------------------
 
 # Parameters
-N: int = 10
-T: int = 20000
+N: int = 5
+T: int = 100
 sparsity: float = 0 # 0 ~ 1
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
-K: int = 4
+K: int = 1
 S_is_symmetric: bool = True
 std_S: float = 0.2
 seed: int = 30
@@ -210,5 +217,5 @@ plt.show()
 
 # Back up this script
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

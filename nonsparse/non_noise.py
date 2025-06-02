@@ -1,3 +1,11 @@
+import sys
+import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 import numpy as np
 import cvxpy as cp
 
@@ -55,7 +63,7 @@ def compute_ground_truth_S(x: np.ndarray) -> np.ndarray:
         S_true[j, i] = s[k]
     return S_true
 
-def run_simulation(N=5, T=100, seed=0):
+def run_simulation(N=3, T=20, seed=0):
     """
     シミュレーションのメイン関数
       - N 次元のベクトル x をランダムに生成（各成分が非零となるように）

@@ -1,7 +1,13 @@
-import datetime
-import os
-import shutil
 import sys
+import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
+import datetime
 from typing import Dict, List, Tuple
 
 import cvxpy as cp
@@ -43,9 +49,9 @@ run_pp_flag: bool = True     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 10
-T: int = 10000
-L: int = 5   # 追加: L個のSを生成してその間を線形補完する
+N: int = 5
+T: int = 100
+L: int = 3   # 追加: L個のSを生成してその間を線形補完する
 sparsity: float = 0.0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -222,5 +228,5 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

@@ -1,3 +1,11 @@
+import sys
+import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -17,7 +25,7 @@ def neumann_series_inverse(S, num_terms):
 
 def simulate_neumann():
     np.random.seed(0)
-    d = 5  # Matrix dimension
+    d = 3  # Matrix dimension (5->3に変更)
 
     # 1. Generate random symmetric matrix R (diagonal=0)
     R = np.random.randn(d, d)
@@ -37,7 +45,7 @@ def simulate_neumann():
     inv_direct_conv = np.linalg.inv(I - S_conv)
 
     # 4. Calculate errors for convergent case
-    num_terms_list = np.arange(1, 51)
+    num_terms_list = np.arange(1, 21)  # 51->21に変更
     errors_conv = []
     for n in num_terms_list:
         inv_neumann_conv = neumann_series_inverse(S_conv, n)

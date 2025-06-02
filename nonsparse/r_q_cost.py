@@ -1,5 +1,12 @@
-import shutil
+import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Tuple, Dict
 
@@ -43,8 +50,8 @@ run_pp_q_flag: bool = False   # qを変化させるシミュレーションの�
 
 #----------------------------------------------------
 # パラメータの設定
-N: int = 10
-T: int = 40000
+N: int = 5  # 10 -> 5に変更
+T: int = 100  # 40000 -> 100に変更
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.5
@@ -88,7 +95,7 @@ print("Offline ||X - S*X||^2 =", offline_cost)
 # --------------------------
 # オフライン解の計算（部分データを用いる場合）
 # --------------------------
-n_splits = 10
+n_splits = 3  # 10 -> 3に変更
 offline_solutions_list = []
 offline_nses_list = []
 offline_costs_list = []
@@ -125,16 +132,16 @@ for i in range(1, n_splits + 1):
 data_counts = [int(i * T / n_splits) for i in range(1, n_splits + 1)]
 
 # --- rを変化させる場合 ---
-r_list = [1, 2, 4, 8, 40]           # 試すrの値
+r_list = [1, 2, 4]           # 試すrの値 (5個->3個に変更)
 q_fixed = 1                         # qは固定
-rho_list_r = [0.0312, 0.0707, 0.149, 0.224, 1.09]       # rごとのrhoの値（r_listと同じ長さ）
-mu_lambda_list_r = [0.0389, 0.116, 0.247, 0.014, 0.0365]  # rごとのmu_lambdaの値
+rho_list_r = [0.0312, 0.0707, 0.149]       # rごとのrhoの値（r_listと同じ長さ）
+mu_lambda_list_r = [0.0389, 0.116, 0.247]  # rごとのmu_lambdaの値
 
 # --- qを変化させる場合 ---
-q_list = [1, 2, 4, 8, 40]            # 試すqの値
+q_list = [1, 2, 4]            # 試すqの値 (5個->3個に変更)
 r_fixed = 1                          # rは固定
-rho_list_q = [0.015, 0.0297, 0.0321, 0.0281, 0.069]      # qごとのrhoの値（q_listと同じ長さ）
-mu_lambda_list_q = [0.00857, 0.0305, 0.0264, 0.00939, 1.202]  # qごとのmu_lambdaの値
+rho_list_q = [0.015, 0.0297, 0.0321]      # qごとのrhoの値（q_listと同じ長さ）
+mu_lambda_list_q = [0.00857, 0.0305, 0.0264]  # qごとのmu_lambdaの値
 
 #----------------------------------------------------
 # モデルのインスタンス化（PP手法以外）
@@ -199,193 +206,176 @@ pp_error_for_r = {}  # {r_val: [NSE(t=0), NSE(t=1), ...], ...}
 if run_pp_r_flag:
     for r_val in r_list:
         estimates_r = pp_estimates_for_r[r_val]
-        pp_error_for_r[r_val] = calc_nse_series(estimates_r, S_series, S_0)
+        nse_series_r = calc_nse_series(estimates_r, S_series, S_0)
+        pp_error_for_r[r_val] = nse_series_r
 
-#----------------------------------------------------
 # Proposed手法: q を変化させた Proposed 手法の NSE を計算
 pp_error_for_q = {}  # {q_val: [NSE(t=0), NSE(t=1), ...], ...}
 if run_pp_q_flag:
     for q_val in q_list:
         estimates_q = pp_estimates_for_q[q_val]
-        pp_error_for_q[q_val] = calc_nse_series(estimates_q, S_series, S_0)
+        nse_series_q = calc_nse_series(estimates_q, S_series, S_0)
+        pp_error_for_q[q_val] = nse_series_q
 
 #----------------------------------------------------
-# 並列化された calc_cost_series
+# コスト計算の関数
 def calc_cost_series(estimates_list: List[np.ndarray], X: np.ndarray) -> List[float]:
     """
-    各推定行列に対してコスト計算を行う関数の並列実行版。
-    Cost = 1/(2T) * ||X - S_est @ X||^2
+    推定行列リストを受け取って、各時刻 t における
+    cost(t) = ||X[:, :t+1] - S_est(t) @ X[:, :t+1]||^2 / (2*(t+1)) を計算して返す。
     """
     def compute_cost(S_est):
-        return (1/(2*T)) * np.linalg.norm(X - S_est @ X)**2
+        return (1 / (2 * X.shape[1])) * norm(X - S_est @ X) ** 2
+    
+    # 各推定結果に対してコストを計算
+    cost_list = []
+    for estimate in estimates_list:
+        cost_val = compute_cost(estimate)
+        cost_list.append(cost_val)
+    return cost_list
 
-    cost_arr = Parallel(n_jobs=-1)(
-        delayed(compute_cost)(S_est) for S_est in tqdm(estimates_list, desc="Calculating cost series", leave=False)
-    )
-    return cost_arr
-
-#----------------------------------------------------
-# Proposed手法: r を変化させた Proposed 手法のコスト関数の推移を
-# 並列化して計算する
-pp_cost_for_r = {}  # {r_val: [cost(t=0), cost(t=1), ...], ...}
+# rを変化させた場合のコスト推移
+pp_cost_for_r = {}
 if run_pp_r_flag:
     def compute_cost_for_r(r_val):
         estimates_r = pp_estimates_for_r[r_val]
-        cost_series = calc_cost_series(estimates_r, X)
-        return (r_val, cost_series)
-    results_cost_r = Parallel(n_jobs=-1)(
-        delayed(compute_cost_for_r)(r_val) for r_val in r_list
-    )
-    pp_cost_for_r = {r_val: cost_series for r_val, cost_series in results_cost_r}
+        cost_series_r = calc_cost_series(estimates_r, X)
+        return cost_series_r
 
-timestamp: str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-today_str: str = datetime.datetime.now().strftime('%y%m%d')
-save_path: str = f'./result/{today_str}/images'
-os.makedirs(save_path, exist_ok=True)
+    for r_val in r_list:
+        pp_cost_for_r[r_val] = compute_cost_for_r(r_val)
 
-#--------------------------
-# Proposed手法: r を変化（NSEのプロット）
-#--------------------------
-# if run_pp_r_flag:
-#     plt.figure(figsize=(10, 6))
-#     for r_val in r_list:
-#         label_str = f'PP (r={r_val}, q={q_fixed})'
-#         plt.plot(pp_error_for_r[r_val], label=label_str)
-#     # オフライン解のNSEを横線で追加
-#     plt.axhline(y=offline_nse, color='k', linestyle='--', label='Offline solution')
-    
-#     plt.yscale('log')
-#     plt.xlim(left=0, right=T)
-#     plt.xlabel('Iteration (t)')
-#     plt.ylabel('NSE')
-#     plt.grid(True, which="both")
-#     plt.legend()
-#     filename_r = f'timestamp{timestamp}_compare_PP_r_values.png'
-#     plt.savefig(os.path.join(save_path, filename_r))
-#     plt.show()
-
-#--------------------------
-# Proposed手法: q を変化（NSEのプロット）
-#--------------------------
+# qを変化させた場合のコスト推移
+pp_cost_for_q = {}
 if run_pp_q_flag:
-    plt.figure(figsize=(10, 6))
+    def compute_cost_for_q(q_val):
+        estimates_q = pp_estimates_for_q[q_val]
+        cost_series_q = calc_cost_series(estimates_q, X)
+        return cost_series_q
+
     for q_val in q_list:
-        label_str = f'PP (r={r_fixed}, q={q_val})'
-        plt.plot(pp_error_for_q[q_val], label=label_str)
-    # オフライン解のNSEを横線で追加
-    plt.axhline(y=offline_nse, color='k', linestyle='--', label='Offline solution')
+        pp_cost_for_q[q_val] = compute_cost_for_q(q_val)
+
+#----------------------------------------------------
+# 結果のプロット
+# NSE推移（r変化）と最終NSE
+if run_pp_r_flag:
+    plt.figure(figsize=(12, 5))
     
+    # NSE推移のプロット
+    plt.subplot(1, 2, 1)
+    for r_val in r_list:
+        nse_series = pp_error_for_r[r_val]
+        plt.plot(nse_series, label=f'r={r_val}')
     plt.yscale('log')
-    plt.xlim(left=0, right=T)
-    plt.xlabel('Iteration (t)')
+    plt.xlabel('t')
     plt.ylabel('NSE')
-    plt.grid(True, which="both")
+    plt.title('NSE progression (varying r)')
     plt.legend()
-    filename_q = f'timestamp{timestamp}_compare_PP_q_values.png'
+    plt.grid(True, which='both')
+    
+    # 最終NSEのプロット
+    plt.subplot(1, 2, 2)
+    final_nse_r = [pp_error_for_r[r_val][-1] for r_val in r_list]
+    plt.plot(r_list, final_nse_r, 'o-')
+    plt.yscale('log')
+    plt.xlabel('r')
+    plt.ylabel('Final NSE')
+    plt.title('Final NSE vs r')
+    plt.grid(True, which='both')
+    
+    plt.tight_layout()
+    
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    notebook_filename = os.path.basename(__file__)
+    filename_r = (
+        f'timestamp{timestamp}_'
+        f'result_N{N}_'
+        f'{notebook_filename}_'
+        f'T{T}_'
+        f'r_comparison.png'
+    )
+    today_str = datetime.datetime.now().strftime('%y%m%d')
+    save_path = f'./result/{today_str}/images'
+    os.makedirs(save_path, exist_ok=True)
+    plt.savefig(os.path.join(save_path, filename_r))
+    plt.show()
+
+# コスト推移（r変化）
+if run_pp_r_flag:
+    plt.figure(figsize=(12, 5))
+    
+    plt.subplot(1, 2, 1)
+    for r_val in r_list:
+        cost_series = pp_cost_for_r[r_val]
+        plt.plot(cost_series, label=f'r={r_val}')
+    plt.yscale('log')
+    plt.xlabel('t')
+    plt.ylabel('Cost')
+    plt.title('Cost progression (varying r)')
+    plt.legend()
+    plt.grid(True, which='both')
+    
+    plt.subplot(1, 2, 2)
+    final_cost_r = [pp_cost_for_r[r_val][-1] for r_val in r_list]
+    plt.plot(r_list, final_cost_r, 'o-')
+    plt.yscale('log')
+    plt.xlabel('r')
+    plt.ylabel('Final Cost')
+    plt.title('Final Cost vs r')
+    plt.grid(True, which='both')
+    
+    plt.tight_layout()
+    
+    filename_cost_r = (
+        f'timestamp{timestamp}_'
+        f'result_N{N}_'
+        f'{notebook_filename}_'
+        f'T{T}_'
+        f'r_cost_comparison.png'
+    )
+    plt.savefig(os.path.join(save_path, filename_cost_r))
+    plt.show()
+
+# NSE推移（q変化）と最終NSE
+if run_pp_q_flag:
+    plt.figure(figsize=(12, 5))
+    
+    # NSE推移のプロット
+    plt.subplot(1, 2, 1)
+    for q_val in q_list:
+        nse_series = pp_error_for_q[q_val]
+        plt.plot(nse_series, label=f'q={q_val}')
+    plt.yscale('log')
+    plt.xlabel('t')
+    plt.ylabel('NSE')
+    plt.title('NSE progression (varying q)')
+    plt.legend()
+    plt.grid(True, which='both')
+    
+    # 最終NSEのプロット
+    plt.subplot(1, 2, 2)
+    final_nse_q = [pp_error_for_q[q_val][-1] for q_val in q_list]
+    plt.plot(q_list, final_nse_q, 'o-')
+    plt.yscale('log')
+    plt.xlabel('q')
+    plt.ylabel('Final NSE')
+    plt.title('Final NSE vs q')
+    plt.grid(True, which='both')
+    
+    plt.tight_layout()
+    
+    filename_q = (
+        f'timestamp{timestamp}_'
+        f'result_N{N}_'
+        f'{notebook_filename}_'
+        f'T{T}_'
+        f'q_comparison.png'
+    )
     plt.savefig(os.path.join(save_path, filename_q))
     plt.show()
 
-#--------------------------
-# Proposed手法: r を変化させた Proposed 手法のコスト関数のプロット
-#--------------------------
-# if run_pp_r_flag:
-#     plt.figure(figsize=(10, 6))
-#     for r_val in r_list:
-#         label_str = f'PP (r={r_val}, q={q_fixed})'
-#         plt.plot(pp_cost_for_r[r_val], label=label_str)
-#     # オフライン解のコストも横線で追加
-#     plt.axhline(y=offline_cost, color='k', linestyle='--', label='Offline cost')
-    
-#     plt.yscale('log')
-#     plt.xlim(left=0, right=T)
-#     plt.xlabel('Iteration')
-#     plt.ylabel(r'Cost $\frac{1}{2T}\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
-#     plt.grid(True, which="both")
-#     plt.legend()
-#     filename_cost = f'timestamp{timestamp}_cost_function_PP_r.png'
-#     plt.savefig(os.path.join(save_path, filename_cost))
-#     plt.show()
-
-#--------------------------
-# 最終的なコスト関数の値を出力
-#--------------------------
-if run_pp_r_flag:
-    print("最終的な Proposed 手法 (r 変化時) のコスト関数の値:")
-    for r_val in r_list:
-        final_cost = pp_cost_for_r[r_val][-1]
-        print(f"r = {r_val}: 最終コスト = {final_cost}")
-
-if run_pp_q_flag:
-    print("最終的な Proposed 手法 (q 変化時) のコスト関数の値:")
-    for q_val in q_list:
-        final_cost = pp_cost_for_q[q_val][-1]
-        print(f"q = {q_val}: 最終コスト = {final_cost}")
-
-#--------------------------
-# オフライン解のコスト関数の値を出力
-#--------------------------
-print("オフライン解のコスト関数の値:")
-print(f"Offline cost = {offline_cost}")
-
-# 真の解（S_series[-1]）におけるコスト関数の値を計算して出力
-true_cost = (1/(2*T)) * norm(X - S_series[-1] @ X)**2
-print("真の解におけるコスト関数の値:")
-print(f"True cost = {true_cost}")
-
-#--------------------------
-# 全体の結果をまとめたグラフ（NSE, Cost）のプロット
-#--------------------------
-
-# グラフ1: NSE の比較
-plt.figure(figsize=(10, 6))
-# オフライン解（部分データ評価）の結果：データ数ごとに得られた NSE
-plt.plot(data_counts, offline_nses_list, marker='o', color='k', linestyle='--', 
-         label='Offline solution (partial data)')
-# Proposed手法（r 変化）の結果：各 r に対して全イテレーションの NSE をプロット
-if run_pp_r_flag:
-    for r_val in r_list:
-        plt.plot(range(len(pp_error_for_r[r_val])), pp_error_for_r[r_val], 
-                 label=f'PP (r={r_val}, q={q_fixed})')
-plt.yscale('log')
-plt.xlim(0, T)
-plt.xlabel('Iteration / Data count')
-plt.ylabel('NSE')
-plt.grid(True, which='both')
-plt.legend()
-plt.tight_layout()
-nse_filename = os.path.join(save_path, f'timestamp{timestamp}_NSE_comparison.png')
-plt.savefig(nse_filename)
-plt.show()
-
-# グラフ2: Cost の比較
-plt.figure(figsize=(10, 6))
-# オフライン解（部分データ評価）の結果：データ数ごとに得られた Cost
-plt.plot(data_counts, offline_costs_list, marker='o', color='k', linestyle='--', 
-         label='Offline solution (partial data)')
-# Proposed手法（r 変化）の結果：各 r に対して全イテレーションの Cost をプロット
-if run_pp_r_flag:
-    for r_val in r_list:
-        plt.plot(range(len(pp_cost_for_r[r_val])), pp_cost_for_r[r_val], 
-                 label=f'PP (r={r_val}, q={q_fixed})')
-# 追加：真の解によるコスト関数の推移のプロット（部分データ評価）
-plt.plot(data_counts, true_costs_list, marker='o', color='b', linestyle='--', 
-         label='True solution (partial data)')
-
-plt.yscale('log')
-plt.xlim(left=0, right=T)
-plt.xlabel('Iteration / Data count')
-plt.ylabel(r'Cost $\frac{1}{2T}\|\mathbf{X} - \mathbf{S}\,\mathbf{X}\|^2_\mathrm{F}$')
-plt.grid(True, which='both')
-plt.legend()
-plt.tight_layout()
-cost_filename = os.path.join(save_path, f'timestamp{timestamp}_Cost_comparison.png')
-plt.savefig(cost_filename)
-plt.show()
-
-#--------------------------
-# スクリプトのバックアップコピー
-#--------------------------
-notebook_filename: str = os.path.basename(__file__)
-copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+# Back up this script
+copy_ipynb_path = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
+shutil.copy(__file__, copy_ipynb_path)
 print(f"Notebook file copied to: {copy_ipynb_path}")

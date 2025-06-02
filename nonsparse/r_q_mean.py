@@ -1,5 +1,12 @@
-import shutil
+import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Dict
 
@@ -43,7 +50,7 @@ run_pp_q_flag: bool = False   # qを変化させるシミュレーションを�
 #--------------------------
 # パラメータ設定
 N: int = 10
-T: int = 40000
+T: int = 40
 sparsity: float = 0.8
 max_weight: float = 0.5
 variance_e: float = 0.005

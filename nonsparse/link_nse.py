@@ -1,6 +1,12 @@
-import shutil
 import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Tuple
 
@@ -39,8 +45,8 @@ run_sgd_flag: bool = False    # SGD
 run_pp_flag: bool = True      # Proposed
 
 # --- シミュレーション全体のパラメータ ---
-N: int = 10             # ノード数
-T: int = 10000          # 時系列長
+N: int = 5             # ノード数 (10->5に変更)
+T: int = 100          # 時系列長 (10000->100に変更)
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
@@ -66,7 +72,7 @@ mu_lambda: float = 1
 
 # --- 接続率（リンク数の割合）を変化させる ---
 # ここでは10%～90%の9段階でシミュレーション
-link_ratios = np.linspace(0.1, 0.9, 9)  # 例：0.1なら全体の10%のリンク
+link_ratios = np.linspace(0.1, 0.9, 3)  # 例：0.1なら全体の10%のリンク (9->3に変更)
 link_percentage_values = link_ratios * 100  # プロット用に%
 
 # --- 各手法の最終NSEを格納するリスト ---
@@ -200,9 +206,10 @@ for sparsity in link_ratios:
         f'timestamp{timestamp}.png'
     )
     plt.savefig(os.path.join(iter_plots_dir, filename_iter))
+    # plt.show()
     plt.close()
 
-# --- 結果のプロット（最終時刻のNSE vs リンク割合） ---
+# --- 結果のプロット（最終時刻の平均NSE vs リンク割合） ---
 plt.figure(figsize=(10, 6))
 if run_pc_flag:
     plt.plot(link_percentage_values, final_NSE_pc, marker='o', color='limegreen', label='Prediction Correction')
@@ -220,7 +227,7 @@ plt.grid(True, which='both')
 plt.legend()
 
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-notebook_filename: str = os.path.basename(__file__) if '__file__' in globals() else 'simulation.py'
+notebook_filename: str = os.path.basename(__file__)
 filename_final: str = (
     f'timestamp{timestamp}_'
     f'result_N{N}_'
@@ -244,15 +251,13 @@ filename_final: str = (
     f'mu_lambda{mu_lambda}.png'
 )
 
-save_path_final: str = os.path.join('.', 'result', today_str, 'images')
-os.makedirs(save_path_final, exist_ok=True)
-plt.savefig(os.path.join(save_path_final, filename_final))
+today_str: str = datetime.datetime.now().strftime('%y%m%d')
+save_path: str = f'./result/{today_str}/images'
+os.makedirs(save_path, exist_ok=True)
+plt.savefig(os.path.join(save_path, filename_final))
 plt.show()
 
 # --- コードファイルのバックアップ ---
-copy_script_path: str = os.path.join(save_path_final, f"{notebook_filename}_backup_{timestamp}.py")
-try:
-    shutil.copy(notebook_filename, copy_script_path)
-    print(f"Script file copied to: {copy_script_path}")
-except Exception as e:
-    print("Backup failed:", e)
+copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
+shutil.copy(__file__, copy_ipynb_path)  # notebook_filename -> __file__に変更
+print(f"Notebook file copied to: {copy_ipynb_path}")

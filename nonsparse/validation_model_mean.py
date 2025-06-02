@@ -1,6 +1,12 @@
-import shutil
 import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 
 import numpy as np
@@ -35,10 +41,10 @@ plt.rcParams["font.size"] = 15
 #--------------------------
 # シミュレーションパラメータ
 #--------------------------
-num_trials = 100  # 試行回数
+num_trials = 10  # 100 -> 10に変更
 
-N: int = 30
-T: int = 3000
+N: int = 5  # 30 -> 5に変更
+T: int = 100  # 3000 -> 100に変更
 sparsity: float = 0     # 辺のスパース性（今回は0:全結合？）
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -158,5 +164,5 @@ plt.show()
 
 # 元のスクリプトのバックアップ保存
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)  # notebook_filename -> __file__に変更
 print(f"Notebook file copied to: {copy_ipynb_path}")

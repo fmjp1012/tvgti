@@ -1,5 +1,12 @@
-import shutil
+import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Tuple, Dict
 
@@ -43,8 +50,8 @@ run_pp_q_flag: bool = False   # qを変化させるシミュレーションの�
 
 #----------------------------------------------------
 # パラメータの設定
-N: int = 10
-T: int = 40000
+N: int = 5
+T: int = 100
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -82,17 +89,9 @@ np.fill_diagonal(S_offline, 0)
 offline_nse = norm(S_offline - S_series[-1])**2 / norm(S_0 - S_series[-1])**2
 print("Offline NSE =", offline_nse)
 
-# --- rを変化させる場合 ---
-r_list = [1, 2, 4, 8, 40]           # 試すrの値
-q_fixed = 1                         # qは固定
-rho_list_r = [0.0312, 0.0707, 0.149, 0.224, 1.09]       # rごとのrhoの値（r_listと同じ長さ）
-mu_lambda_list_r = [0.0389, 0.116, 0.247, 0.014, 0.0365] # rごとのmu_lambdaの値
-
-# --- qを変化させる場合 ---
-q_list = [1, 2, 4, 8, 40]            # 試すqの値
-r_fixed = 1                          # rは固定
-rho_list_q = [0.015, 0.0297, 0.0321, 0.0281, 0.069]      # qごとのrhoの値（q_listと同じ長さ）
-mu_lambda_list_q = [0.00857, 0.0305, 0.0264, 0.00939, 1.202] # qごとのmu_lambdaの値
+# r と q の範囲
+r_values = range(1, 4, 1)  # [1, 5, 15, ...] -> [1, 2, 3]に変更
+q_values = range(1, 4, 1)  # [1, 5, 15, ...] -> [1, 2, 3]に変更
 
 #----------------------------------------------------
 # モデルのインスタンス化（PP手法以外）
@@ -120,21 +119,21 @@ def run_tv_sem_pp(r_val: int, q_val: int, rho_val: float, mu_lambda_val: float) 
 pp_estimates_for_r = {}  # rごとの推定列を保存
 if run_pp_r_flag:
     # 並列実行のためのパラメータリスト作成
-    params_r = [(r, q_fixed, rho, mu) for r, rho, mu in zip(r_list, rho_list_r, mu_lambda_list_r)]
+    params_r = [(r, q, rho, mu) for r, q, rho, mu in zip(r_values, q_values, [0.0312, 0.0707, 0.149], [0.0389, 0.116, 0.247])]
     results_r = Parallel(n_jobs=-1)(
         delayed(run_tv_sem_pp)(r, q, rho, mu) for r, q, rho, mu in params_r
     )
-    pp_estimates_for_r = {r: result for r, result in zip(r_list, results_r)}
+    pp_estimates_for_r = {r: result for r, result in zip(r_values, results_r)}
 
 #----------------------------------------------------
 # Proposed手法: q を変化させる場合の並列実行
 pp_estimates_for_q = {}  # qごとの推定列を保存
 if run_pp_q_flag:
-    params_q = [(r_fixed, q, rho, mu) for q, rho, mu in zip(q_list, rho_list_q, mu_lambda_list_q)]
+    params_q = [(r, q, rho, mu) for r, q, rho, mu in zip(r_values, q_values, [0.015, 0.0297, 0.0321], [0.00857, 0.0305, 0.0264])]
     results_q = Parallel(n_jobs=4)(
         delayed(run_tv_sem_pp)(r, q, rho, mu) for r, q, rho, mu in params_q
     )
-    pp_estimates_for_q = {q: result for q, result in zip(q_list, results_q)}
+    pp_estimates_for_q = {q: result for q, result in zip(q_values, results_q)}
 
 #----------------------------------------------------
 # それぞれの推定結果について、NSE（正規化二乗誤差）を計算する関数
@@ -158,7 +157,7 @@ def calc_nse_series(estimates_list: List[np.ndarray], true_S_list: List[np.ndarr
 # r を変化させた Proposed 手法の NSE を計算
 pp_error_for_r = {}  # {r_val: [NSE(t=0), NSE(t=1), ...], ...}
 if run_pp_r_flag:
-    for r_val in r_list:
+    for r_val in r_values:
         estimates_r = pp_estimates_for_r[r_val]
         pp_error_for_r[r_val] = calc_nse_series(estimates_r, S_series, S_0)
 
@@ -166,7 +165,7 @@ if run_pp_r_flag:
 # q を変化させた Proposed 手法の NSE を計算
 pp_error_for_q = {}  # {q_val: [NSE(t=0), NSE(t=1), ...], ...}
 if run_pp_q_flag:
-    for q_val in q_list:
+    for q_val in q_values:
         estimates_q = pp_estimates_for_q[q_val]
         pp_error_for_q[q_val] = calc_nse_series(estimates_q, S_series, S_0)
 

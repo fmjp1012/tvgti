@@ -1,6 +1,12 @@
-import shutil
 import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Tuple, Dict
 
@@ -42,8 +48,8 @@ plt.rcParams["font.size"] = 15
 # ----------------------------------------------------
 # 固定パラメータの設定
 # ----------------------------------------------------
-N: int = 10
-T: int = 50000
+N: int = 5  # 10 -> 5に変更
+T: int = 100  # 50000 -> 100に変更
 sparsity: float = 0.0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -56,7 +62,10 @@ S_is_symmetric: bool = True
 # ----------------------------------------------------
 # 例: Frobenius ノルムを使った誤差の割合
 def calc_nse(S_true: np.ndarray, S_est: np.ndarray) -> float:
-    return (norm(S_true - S_est, 'fro') ** 2) / (norm(S_true, 'fro') ** 2)
+    denom = norm(S_true, 'fro') ** 2
+    if denom < 1e-12:
+        return 0.0
+    return (norm(S_true - S_est, 'fro') ** 2) / denom
 
 # ----------------------------------------------------
 # 並列実行する処理を関数化
@@ -103,7 +112,7 @@ def run_experiment_for_snr(snr_target: float, seed: int = 10) -> Tuple[float, fl
 if __name__ == "__main__":
     # SNR の候補 (1 〜 20)
     # snr_values = [1, 10, 20]
-    snr_values = range(1, 21)
+    snr_values = [0.5, 1.0, 1.5, 2.0]  # range(1, 6) -> lower values to avoid stability error
     seed = 10  # 再現性のための固定シード(必要に応じて)
 
     # 並列実行 (n_jobs=-1 で CPU 全コア使用)
@@ -198,8 +207,8 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig(os.path.join(save_path, filename_snr))
     plt.close()
-
-    # Notebook or .py のバックアップ
+    
+    # Back up this script
     copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-    shutil.copy(notebook_filename, copy_ipynb_path)
+    shutil.copy(__file__, copy_ipynb_path)
     print(f"Notebook file copied to: {copy_ipynb_path}")

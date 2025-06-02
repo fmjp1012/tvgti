@@ -1,5 +1,16 @@
+import sys
+import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 import numpy as np
 from scipy.optimize import bisect
+
+# 再現性のためにseedを設定
+np.random.seed(42)
 
 def compute_snr(c, S_rand, d):
     """
@@ -21,8 +32,8 @@ def compute_snr(c, S_rand, d):
     return snr
 
 # --- 設定 ---
-gamma_target = 100   # 目標 SNR (例)
-d = 5                # 次元
+gamma_target = 10   # 目標 SNR (100->10に変更)
+d = 3                # 次元 (5->3に変更)
 
 # --- 1. 対称なランダム行列 S_rand の生成 ---
 # まず、d×d の一様乱数行列 A を生成

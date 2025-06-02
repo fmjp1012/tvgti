@@ -44,8 +44,8 @@ run_pp_flag: bool = True     # Proposed
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 10
-T: int = 5000
+N: int = 5
+T: int = 100
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -56,7 +56,7 @@ S_is_symmetric: bool = True
 # ここで SNR ターゲットを指定 (例: 3.0)
 snr_target: float = 2
 
-seed: int = 10
+seed: int = 30
 np.random.seed(seed)
 
 # ----------------------------------------------------
@@ -244,6 +244,7 @@ os.makedirs(save_path, exist_ok=True)
 plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
+# Back up this script
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)  # notebook_filename -> __file__に変更
 print(f"Notebook file copied to: {copy_ipynb_path}")

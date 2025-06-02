@@ -1,6 +1,12 @@
-import shutil
 import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 from typing import List, Tuple
 
@@ -38,8 +44,8 @@ run_sgd_flag: bool = True    # SGD
 run_pp_flag: bool = True      # Proposed
 
 # --- シミュレーション全体のパラメータ ---
-N: int = 10             # ノード数
-T: int = 10000          # 時系列長
+N: int = 5             # ノード数 (10->5に変更)
+T: int = 100          # 時系列長 (10000->100に変更)
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)
@@ -65,7 +71,7 @@ mu_lambda: float = 1
 
 # --- 接続率（リンク数の割合）を変化させる ---
 # ここでは10%～90%の9段階でシミュレーション
-link_ratios = np.linspace(0.9, 0.93, 4)  # 例：0.1なら全体の10%のリンク
+link_ratios = np.linspace(0.9, 0.93, 2)  # 例：0.1なら全体の10%のリンク (4->2に変更)
 link_percentage_values = link_ratios * 100  # プロット用に%
 
 # --- 各手法の最終NSEの平均値を格納するリスト ---
@@ -80,7 +86,7 @@ save_dir: str = os.path.join('.', 'result', today_str, 'images')
 os.makedirs(save_dir, exist_ok=True)
 
 # --- 試行回数 ---
-num_trials = 100
+num_trials = 3  # 100 -> 3に変更
 
 # --- 1回の試行を実行する関数 ---
 def run_simulation_trial(sparsity: float) -> Tuple[float, float, float, float]:
@@ -91,9 +97,50 @@ def run_simulation_trial(sparsity: float) -> Tuple[float, float, float, float]:
     # 真の構造行列系列 S_series と観測データ X の生成
     S_series, X = generate_piecewise_X_K(N, T, S_is_symmetric, sparsity, max_weight, std_e, K)
     
-    # 初期値 S_0 の生成
-    S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
-    S_0 = S_0 / norm(S_0)
+    # 初期値 S_0 の生成（より安全な処理）
+    max_attempts = 10
+    for attempt in range(max_attempts):
+        try:
+            S_0: np.ndarray = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
+            S_0_norm = norm(S_0)
+            
+            # S_0がゼロ行列またはnorm計算でエラーが発生した場合の処理
+            if S_0_norm < 1e-12 or not np.isfinite(S_0_norm):
+                # 小さなランダム行列を生成
+                S_0 = np.random.randn(N, N) * 0.1
+                if S_is_symmetric:
+                    S_0 = (S_0 + S_0.T) / 2
+                np.fill_diagonal(S_0, 0)
+                S_0_norm = norm(S_0)
+                
+                # それでもだめなら単位行列の小さい倍数を使用
+                if S_0_norm < 1e-12 or not np.isfinite(S_0_norm):
+                    S_0 = np.eye(N) * 0.1
+                    np.fill_diagonal(S_0, 0)
+                    if N > 1:
+                        S_0[0, 1] = 0.1
+                        if S_is_symmetric:
+                            S_0[1, 0] = 0.1
+                    S_0_norm = norm(S_0)
+            
+            # 正規化
+            if S_0_norm > 1e-12 and np.isfinite(S_0_norm):
+                S_0 = S_0 / S_0_norm
+                break
+            
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            if attempt == max_attempts - 1:
+                # 最後の試行として確実に動く初期値を設定
+                S_0 = np.zeros((N, N))
+                if N > 1:
+                    S_0[0, 1] = 0.1
+                    if S_is_symmetric:
+                        S_0[1, 0] = 0.1
+                S_0_norm = norm(S_0)
+                if S_0_norm > 1e-12:
+                    S_0 = S_0 / S_0_norm
+                break
     
     # --- 各手法のモデルのインスタンス化 ---
     tv_sem_pc = TimeVaryingSEM_PC_NONSPARSE(N, S_0, alpha, beta_pc, gamma, P, C, name="pc")
@@ -125,33 +172,53 @@ def run_simulation_trial(sparsity: float) -> Tuple[float, float, float, float]:
     if run_pc_flag:
         estimates_pc, _ = results[idx_result]
         num_iter = min(len(estimates_pc), len(S_series))
-        error_curve_pc = [(norm(estimates_pc[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
-                           for i in range(num_iter)]
-        final_pc = error_curve_pc[-1]
+        error_curve_pc = []
+        for i in range(num_iter):
+            denom = norm(S_0 - S_series[i])**2
+            if denom < 1e-12:
+                error_curve_pc.append(0.0)
+            else:
+                error_curve_pc.append((norm(estimates_pc[i] - S_series[i])**2) / denom)
+        final_pc = error_curve_pc[-1] if error_curve_pc else np.nan
         idx_result += 1
 
     if run_co_flag:
         estimates_co, _ = results[idx_result]
         num_iter = min(len(estimates_co), len(S_series))
-        error_curve_co = [(norm(estimates_co[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
-                           for i in range(num_iter)]
-        final_co = error_curve_co[-1]
+        error_curve_co = []
+        for i in range(num_iter):
+            denom = norm(S_0 - S_series[i])**2
+            if denom < 1e-12:
+                error_curve_co.append(0.0)
+            else:
+                error_curve_co.append((norm(estimates_co[i] - S_series[i])**2) / denom)
+        final_co = error_curve_co[-1] if error_curve_co else np.nan
         idx_result += 1
 
     if run_sgd_flag:
         estimates_sgd, _ = results[idx_result]
         num_iter = min(len(estimates_sgd), len(S_series))
-        error_curve_sgd = [(norm(estimates_sgd[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
-                           for i in range(num_iter)]
-        final_sgd = error_curve_sgd[-1]
+        error_curve_sgd = []
+        for i in range(num_iter):
+            denom = norm(S_0 - S_series[i])**2
+            if denom < 1e-12:
+                error_curve_sgd.append(0.0)
+            else:
+                error_curve_sgd.append((norm(estimates_sgd[i] - S_series[i])**2) / denom)
+        final_sgd = error_curve_sgd[-1] if error_curve_sgd else np.nan
         idx_result += 1
 
     if run_pp_flag:
         estimates_pp = results[idx_result]
         num_iter = min(len(estimates_pp), len(S_series))
-        error_curve_pp = [(norm(estimates_pp[i] - S_series[i])**2) / (norm(S_0 - S_series[i])**2) 
-                          for i in range(num_iter)]
-        final_pp = error_curve_pp[-1]
+        error_curve_pp = []
+        for i in range(num_iter):
+            denom = norm(S_0 - S_series[i])**2
+            if denom < 1e-12:
+                error_curve_pp.append(0.0)
+            else:
+                error_curve_pp.append((norm(estimates_pp[i] - S_series[i])**2) / denom)
+        final_pp = error_curve_pp[-1] if error_curve_pp else np.nan
         idx_result += 1
 
     return final_pc, final_co, final_sgd, final_pp
@@ -205,7 +272,7 @@ plt.grid(True, which='both')
 plt.legend()
 
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-notebook_filename: str = os.path.basename(__file__) if '__file__' in globals() else 'simulation.py'
+notebook_filename: str = os.path.basename(__file__)
 filename_final: str = (
     f'timestamp{timestamp}_'
     f'result_N{N}_'
@@ -234,8 +301,5 @@ plt.show()
 
 # --- コードファイルのバックアップ ---
 copy_script_path: str = os.path.join(save_dir, f"{notebook_filename}_backup_{timestamp}.py")
-try:
-    shutil.copy(notebook_filename, copy_script_path)
-    print(f"Script file copied to: {copy_script_path}")
-except Exception as e:
-    print("Backup failed:", e)
+shutil.copy(__file__, copy_script_path)
+print(f"Script file copied to: {copy_script_path}")

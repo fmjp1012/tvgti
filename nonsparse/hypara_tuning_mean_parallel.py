@@ -4,6 +4,9 @@ import os
 import datetime
 from typing import List, Tuple, Dict
 
+# パスを親ディレクトリに追加
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 from scipy.linalg import norm
 import matplotlib.pyplot as plt
@@ -13,7 +16,7 @@ from multiprocessing import Manager
 
 import optuna  # <-- Import Optuna
 
-from utils import *
+from utils import generate_piecewise_X_K, generate_random_S, calc_snr
 from models.tvgti_pp_nonsparse_undirected import TimeVaryingSEM as TimeVaryingSEM_PP_NONSPARSE_UNDIRECTED
 
 # コマンドライン引数の処理
@@ -48,8 +51,8 @@ plt.rcParams["ytick.minor.size"] = 5
 plt.rcParams["font.size"] = 15
 
 # パラメータの設定
-N: int = 10
-T: int = 10000
+N: int = 5
+T: int = 100
 sparsity: float = 0
 max_weight: float = 0.5
 variance_e: float = 0.005
@@ -126,7 +129,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 #----------------------------------------------------
 # Optuna でハイパーパラメータ探索
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=1000)  # トライアル数は必要に応じて変更
+study.optimize(objective, n_trials=10)  # 1000 -> 10に変更
 
 print("Study best trial:")
 best_trial = study.best_trial
@@ -187,5 +190,5 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 copy_ipynb_path: str = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)  # notebook_filename -> __file__に変更
 print(f"Notebook file copied to: {copy_ipynb_path}")

@@ -1,5 +1,12 @@
-import shutil
+import sys
 import os
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import shutil
 import datetime
 
 import numpy as np
@@ -41,16 +48,18 @@ run_sgd_flag = True    # SGD
 run_pp_flag = True     # Proposed（PP）
 #-------------------------
 
-# 試行回数・パラメータの設定
-num_trials = 100
-N = 30
-T = 30000
-sparsity = 0
-max_weight = 0.5
-variance_e = 0.005
-std_e = np.sqrt(variance_e)
-K = 1
-S_is_symmetric = True
+# 試行回数
+num_trials = 10  # 100 -> 10に変更
+
+# パラメータの設定
+N: int = 5  # 30 -> 5に変更
+T: int = 100  # 3000 -> 100に変更
+sparsity: float = 0
+max_weight: float = 0.5
+variance_e: float = 0.005
+std_e: float = np.sqrt(variance_e)
+K: int = 1
+S_is_symmetric: bool = True
 
 seed = 3  # 基本シード
 
@@ -203,5 +212,5 @@ plt.savefig(os.path.join(save_path, filename))
 plt.show()
 
 copy_ipynb_path = os.path.join(save_path, f"{notebook_filename}_backup_{timestamp}.py")
-shutil.copy(notebook_filename, copy_ipynb_path)
+shutil.copy(__file__, copy_ipynb_path)  # notebook_filename -> __file__に変更
 print(f"Notebook file copied to: {copy_ipynb_path}")
