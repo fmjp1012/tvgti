@@ -34,32 +34,54 @@ def generate_random_S(
 def generate_regular_S(
     N: int,
     sparsity: float,
-    max_weight: float
+    max_weight: float,
+    S_is_symmetric: bool = True
 ) -> np.ndarray:
     """
     正則グラフに基づいて S を生成するサンプル実装.
-    ここでは，無向 d-正則グラフを生成し，対応する隣接行列に
-    [-max_weight, max_weight] の重みを付与したものを返す.
-    （常に対称行列となる）
+    S_is_symmetric=True の場合：無向 d-正則グラフを生成し、対称行列を返す
+    S_is_symmetric=False の場合：有向正則グラフ風の行列を生成し、非対称行列を返す
     """
     # 1行のオフダイアゴナル成分のうち，ゼロとする個数
     k = int(round((N - 1) * sparsity))
     # 非ゼロにする個数（すなわち次数）
     d = (N - 1) - k
 
-    # d正則グラフの場合，全ノードの次数の和は偶数である必要があるためチェック
-    if (N * d) % 2 != 0:
-        # 和が奇数になる場合は d を 1 減らし調整（それに伴い k も変わる）
-        d -= 1
-        k = (N - 1) - d
+    if S_is_symmetric:
+        # d正則グラフの場合，全ノードの次数の合計は偶数である必要があるためチェック
+        if (N * d) % 2 != 0:
+            # 和が奇数になる場合は d を 1 減らし調整（それに伴い k も変わる）
+            d -= 1
+            k = (N - 1) - d
 
-    # ランダムな d-正則グラフを生成 (無向グラフなので対称性が保証される)
-    G = nx.random_regular_graph(d, N)
-    A = nx.to_numpy_array(G)
+        # ランダムな d-正則グラフを生成 (無向グラフなので対称性が保証される)
+        G = nx.random_regular_graph(d, N)
+        A = nx.to_numpy_array(G)
 
-    # A の1の箇所に対して重みを割り当てる．重みは [-max_weight, max_weight] の一様乱数．
-    weights = np.random.uniform(-max_weight, max_weight, size=(N, N))
-    S = A * weights
+        # 対称性を保証するために、上三角部分のみに重みを割り当て、下三角にコピー
+        S = np.zeros((N, N))
+        for i in range(N):
+            for j in range(i + 1, N):
+                if A[i, j] == 1:  # エッジが存在する場合
+                    weight = np.random.uniform(-max_weight, max_weight)
+                    S[i, j] = weight
+                    S[j, i] = weight  # 対称性を保証
+    else:
+        # 非対称版：各行で d 個の非ゼロ要素を持つように
+        S = np.zeros((N, N))
+        for i in range(N):
+            # 行 i において、非ゼロにする列インデックスをランダムに選択
+            # （対角成分は除外）
+            available_cols = [j for j in range(N) if j != i]
+            if d <= len(available_cols):
+                selected_cols = np.random.choice(available_cols, size=d, replace=False)
+            else:
+                # d が N-1 を超える場合は全ての非対角要素を選択
+                selected_cols = available_cols
+            
+            # 選択された列に重みを割り当て
+            for j in selected_cols:
+                S[i, j] = np.random.uniform(-max_weight, max_weight)
 
     # 対角成分は必ず0に
     np.fill_diagonal(S, 0)
@@ -91,7 +113,7 @@ def generate_piecewise_X_K(
     I = np.eye(N)
     for i in range(K):
         if s_type == "regular":
-            S = generate_regular_S(N, sparsity, max_weight)
+            S = generate_regular_S(N, sparsity, max_weight, S_is_symmetric)
         else:
             S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
         S_list.append(S)
@@ -170,7 +192,7 @@ def generate_piecewise_X_K_with_snr(
     for i in range(K):
         # Generate a base random S
         if s_type == "regular":
-            S_raw = generate_regular_S(N, sparsity, max_weight)
+            S_raw = generate_regular_S(N, sparsity, max_weight, S_is_symmetric)
         else:
             S_raw = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
         # scale_S_for_target_snr は utils に定義されている前提
@@ -225,7 +247,7 @@ def generate_brownian_piecewise_X_K(
     
     # 初回 S の生成
     if s_type == "regular":
-        S = generate_regular_S(N, sparsity, max_weight)
+        S = generate_regular_S(N, sparsity, max_weight, S_is_symmetric)
     else:
         S = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
     S_list.append(S)
@@ -286,8 +308,8 @@ def generate_linear_X(
 
     # 2つの行列を生成
     if s_type == "regular":
-        S_start = generate_regular_S(N, sparsity, max_weight)
-        S_end   = generate_regular_S(N, sparsity, max_weight)
+        S_start = generate_regular_S(N, sparsity, max_weight, S_is_symmetric)
+        S_end   = generate_regular_S(N, sparsity, max_weight, S_is_symmetric)
     else:
         S_start = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
         S_end   = generate_random_S(N, sparsity, max_weight, S_is_symmetric)
@@ -342,7 +364,7 @@ def generate_linear_X_L(
     """
     # L 個の S を生成
     if s_type == "regular":
-        S_points = [generate_regular_S(N, sparsity, max_weight) for _ in range(L)]
+        S_points = [generate_regular_S(N, sparsity, max_weight, S_is_symmetric) for _ in range(L)]
     else:
         S_points = [generate_random_S(N, sparsity, max_weight, S_is_symmetric) for _ in range(L)]
     
