@@ -42,9 +42,9 @@ run_pp_flag: bool = True      # Proposed (we will tune this)
 #----------------------------------------------------
 
 # パラメータの設定
-N: int = 5
-T: int = 100
-sparsity: float = 0
+N: int = 51
+T: int = 10000
+sparsity: float = 0.5
 max_weight: float = 0.5
 variance_e: float = 0.005
 std_e: float = np.sqrt(variance_e)

@@ -1,0 +1,10 @@
+{
+  "timestamp": "20250604_144229",
+  "n_trials": 10,
+  "pp_optimized_rho": 0.04907288377300247,
+  "pp_optimized_mu_lambda": 0.08826583578958455,
+  "pp_final_nse": 0.3576753615231748,
+  "sgd_optimized_beta_sgd": 0.05534065941514932,
+  "sgd_optimized_lambda_reg": 0.09459032992667635,
+  "sgd_final_nse": 0.3679172564868501
+}

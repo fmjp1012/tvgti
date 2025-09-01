@@ -35,8 +35,8 @@ plt.rcParams["ytick.minor.size"] = 5
 plt.rcParams["font.size"] = 15
 
 # パラメータの設定
-N: int = 5
-T: int = 100
+N: int = 30
+T: int = 10000
 sparsity: float = 0.5
 max_weight: float = 0.5
 variance_e: float = 0.01
