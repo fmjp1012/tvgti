@@ -130,3 +130,19 @@ class TimeVaryingSEM:
             cost_values.append(self.f())
         
         return estimates, cost_values
+
+
+class TimeVaryingSEMWithL1Correction(TimeVaryingSEM):
+    def __init__(self, N, S_0, lambda_reg, alpha, beta, gamma, P, C, show_progress=True, name="pc_sparse_l1corr"):
+        super().__init__(N, S_0, lambda_reg, alpha, beta, gamma, P, C, show_progress, name)
+
+    def correction_step(self):
+        s_corr = self.s.copy()
+
+        for c in range(self.C):
+            self.compute_gradient(s_corr)
+            s_corr = s_corr - self.beta * self.grad
+            # Apply L1 proximal operator in correction step as well
+            s_corr = soft_thresholding(s_corr, 2 * self.beta * self.lambda_reg)
+
+        self.s = s_corr
