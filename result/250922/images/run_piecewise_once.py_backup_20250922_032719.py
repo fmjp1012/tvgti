@@ -192,13 +192,12 @@ def main():
             ax.set_xticks([])
             ax.set_yticks([])
         cbar = fig.colorbar(im, ax=axes, location='right', shrink=0.9, pad=0.02)
-        # ラベルは不要
-        cbar.set_label("")
+        cbar.ax.set_ylabel('weight')
+        fig.suptitle(f'Heatmap comparison at t={t_idx}', y=1.02)
         heatmap_filename = (f'timestamp{timestamp}_heatmaps_N{N}_notebook_filename{notebook_filename}_'
                             f'T{T}_K{K}_seed{seed}_r{r}_q{q}_rho{rho}_mulambda{mu_lambda}_t{t_idx}.png')
         fig.savefig(os.path.join(save_path, heatmap_filename))
-        # 画面にも表示
-        plt.show()
+        plt.close(fig)
 
 
 if __name__ == "__main__":

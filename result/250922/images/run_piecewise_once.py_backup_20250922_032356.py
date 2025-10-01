@@ -25,7 +25,7 @@ def main():
     plt.rcParams["font.size"] = 15
 
     # パラメータ
-    N = 20
+    N = 10
     T = 1000
     sparsity = 0.7
     max_weight = 0.5
@@ -40,8 +40,6 @@ def main():
     parser.add_argument("--show_offline_line", type=int, default=0, help="オフラインNSEの横線を描画する(1)/しない(0)")
     parser.add_argument("--save_heatmaps", type=int, default=0, help="推定と真値のヒートマップ比較を保存する(1)/しない(0)")
     parser.add_argument("--heatmap_time", type=int, default=-1, help="ヒートマップを描画する時刻t（-1で最終時刻）")
-    # 問題スケール上書き
-    parser.add_argument("--N", type=int, default=None, help="ノード数Nを上書き（既定20）")
     # PPのハイパラ上書き用（任意）
     parser.add_argument("--pp_r", type=int, default=None, help="PPのrを上書き")
     parser.add_argument("--pp_q", type=int, default=None, help="PPのqを上書き")
@@ -79,9 +77,7 @@ def main():
         sgd_cfg = cfg.get('sgd', {})
         beta_sgd = sgd_cfg.get('beta_sgd', beta_sgd)
 
-    # CLIでスケール/PPを上書き
-    if args.N is not None:
-        N = int(args.N)
+    # CLIでPPを上書き
     if args.pp_r is not None:
         r = args.pp_r
     if args.pp_q is not None:
@@ -184,21 +180,21 @@ def main():
             'PC+L1C': estimates_pc_l1c[t_idx],
         }
         max_abs = max(float(np.max(np.abs(m))) for m in mats.values()) + 1e-12
-        fig, axes = plt.subplots(2, 3, figsize=(12, 8), constrained_layout=True)
+        fig, axes = plt.subplots(2, 3, figsize=(12, 8))
         axes = axes.ravel()
         for ax, (title, mat) in zip(axes, mats.items()):
             im = ax.imshow(mat, cmap='RdBu_r', vmin=-max_abs, vmax=max_abs, aspect='equal', interpolation='nearest')
             ax.set_title(title)
             ax.set_xticks([])
             ax.set_yticks([])
-        cbar = fig.colorbar(im, ax=axes, location='right', shrink=0.9, pad=0.02)
-        # ラベルは不要
-        cbar.set_label("")
+        cbar = fig.colorbar(im, ax=axes.tolist(), shrink=0.85, orientation='vertical')
+        cbar.ax.set_ylabel('weight')
+        fig.suptitle(f'Heatmap comparison at t={t_idx}')
         heatmap_filename = (f'timestamp{timestamp}_heatmaps_N{N}_notebook_filename{notebook_filename}_'
                             f'T{T}_K{K}_seed{seed}_r{r}_q{q}_rho{rho}_mulambda{mu_lambda}_t{t_idx}.png')
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         fig.savefig(os.path.join(save_path, heatmap_filename))
-        # 画面にも表示
-        plt.show()
+        plt.close(fig)
 
 
 if __name__ == "__main__":
